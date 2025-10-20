@@ -1,0 +1,71 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.synclab'
+version = '0.0.1-SNAPSHOT'
+description = 'Milo-Server'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ["--enable-preview"]
+    options.release = 21
+}
+
+tasks.withType(JavaExec).configureEach {
+    jvmArgs += "--enable-preview"
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    all {
+        // ✅ 모든 구버전 로깅 프레임워크 제거
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'ch.qos.logback', module: 'logback-core'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'log4j', module: 'log4j'
+        exclude group: 'org.apache.logging.log4j'
+    }
+}
+
+dependencies {
+    // ✅ Spring Boot 기본
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // ✅ Eclipse Milo 서버
+    implementation 'org.eclipse.milo:sdk-server:0.6.12'
+    implementation 'org.eclipse.milo:sdk-client:0.6.12'
+    implementation 'org.eclipse.milo:stack-core:0.6.12'
+    implementation 'org.eclipse.milo:stack-server:0.6.12'
+
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.5'
+
+    implementation 'ch.qos.logback:logback-classic:1.5.6'
+    implementation 'ch.qos.logback:logback-core:1.5.6'
+
+    // ⚠️ server-examples 제거
+    // implementation 'org.eclipse.milo:server-examples:0.6.10'  ← 삭제
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(Test) {
+    enabled = false
+}
+
