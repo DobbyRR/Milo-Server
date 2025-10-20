@@ -22,7 +22,7 @@ public class MiloServerConfig {
     public OpcUaServer opcUaServer(UaNodeManager manager) {
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("localhost")
+                .setHostname("192.168.0.17") // 접속중인 IP
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)
@@ -36,26 +36,25 @@ public class MiloServerConfig {
 
         OpcUaServer server = new OpcUaServer(config);
 
-        try {
-            // ✅ ObjectsFolder를 먼저 초기화
-            server.startup().get();
-
+            // (1) Namespace 인스턴스 생성
             MultiMachineNameSpace namespace = new MultiMachineNameSpace(server);
-            namespace.initializeNodes();
 
-//            // ✅ startup()이 끝난 후에 Namespace 생성
-//            new MultiMachineNameSpace(server);
+            // (2) 직접 AddressSpaceManager에 등록
+            server.getAddressSpaceManager().register(namespace);
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("OPC UA server startup interrupted", e);
-        } catch (ExecutionException e) {
-            throw new IllegalStateException("Failed to start OPC UA server", e.getCause());
-        }
+            // ObjectsFolder를 먼저 초기화
+            server.startup()
+                    .thenRun(() -> {
+                        namespace.initializeNodes();
+                        System.out.println("✅ Milo OPC UA Server started and namespace initialized.");
+                    })
+                    .exceptionally(ex -> {
+                        ex.printStackTrace();
+                        return null;
+                    });
 
-        return server;
+            return server;
     }
-
 
     @Bean
     public UaNodeManager nodeManager() {
