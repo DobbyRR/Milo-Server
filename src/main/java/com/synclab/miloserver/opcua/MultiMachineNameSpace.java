@@ -3,6 +3,7 @@ package com.synclab.miloserver.opcua;
 
 import com.synclab.miloserver.machine.Machine1Logic;
 import com.synclab.miloserver.machine.Machine2Logic;
+import org.eclipse.milo.opcua.sdk.core.AccessLevel;
 import org.eclipse.milo.opcua.sdk.core.Reference;
 import org.eclipse.milo.opcua.sdk.core.nodes.VariableNode;
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
@@ -16,18 +17,25 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaObjectNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.delegates.AttributeDelegate;
+import org.eclipse.milo.opcua.sdk.server.nodes.filters.AttributeFilters;
+import org.eclipse.milo.opcua.stack.core.AttributeId;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.QualifiedName;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
+import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UByte;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort;
+import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import static org.eclipse.milo.opcua.sdk.core.AccessLevel.CurrentRead;
+import static org.eclipse.milo.opcua.sdk.core.AccessLevel.CurrentWrite;
 
 public class MultiMachineNameSpace extends ManagedNamespace {
     private final OpcUaServer server;
@@ -126,10 +134,34 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                 .setValue(new DataValue(new Variant(initVal)))
                 .build();
 
+        // ✅ 초기값 설정
+//        node.setValue(new DataValue(new Variant(initVal)));
+        DataValue initValue = new DataValue(new Variant(initVal));
+        node.setValue(initValue);
+
+        // ✅ AccessLevel 직접 비트연산 (읽기 + 쓰기)
+        UByte rwAccess = Unsigned.ubyte(
+                AccessLevel.CurrentRead.getValue() | AccessLevel.CurrentWrite.getValue()
+        );
+        node.setAccessLevel(rwAccess);
+        node.setUserAccessLevel(rwAccess);
+
         // ✅ Write 감지용 AttributeDelegate 설정
         node.setAttributeDelegate(new AttributeDelegate() {
             @Override
+            public DataValue getValue(AttributeContext context, VariableNode variableNode) {
+                DataValue val = variableNode.getValue();
+                System.out.printf("[READ] %s = %s%n",
+                        variableNode.getBrowseName().getName(),
+                        val.getValue().getValue());
+                // 읽기 요청 시 현재 값 반환
+                return variableNode.getValue();
+            }
+
+            @Override
             public void setValue(AttributeContext context, VariableNode variableNode, DataValue value) {
+                variableNode.setValue(value);
+
                 String varName = variableNode.getBrowseName().getName();
                 String machineName = folder.getBrowseName().getName();
                 Object newValue = value.getValue().getValue();
@@ -144,10 +176,49 @@ public class MultiMachineNameSpace extends ManagedNamespace {
             }
         });
 
+        // Value attribute 명시적 등록
+        node.setValue(new DataValue(new Variant(initVal))); // 초기값 보장
+
+        node.getFilterChain().addLast(
+                AttributeFilters.getValue(ctx -> {
+                    DataValue current = node.getValue();
+                    if (current == null || current.getValue() == null) {
+                        System.out.printf("[WARN] %s value null, returning default %s%n",
+                                node.getBrowseName().getName(), initVal);
+                        return new DataValue(new Variant(initVal));
+                    }
+                    System.out.printf("[READ] %s = %s%n",
+                            node.getBrowseName().getName(),
+                            current.getValue().getValue());
+                    return current;
+                })
+        );
+
+        node.getFilterChain().addLast(
+                AttributeFilters.setValue((ctx, value) -> {
+                    node.setValue(value);
+                    System.out.printf("[WRITE] %s = %s%n",
+                            node.getBrowseName().getName(),
+                            value.getValue().getValue());
+
+                    String varName = node.getBrowseName().getName();
+                    String machineName = folder.getBrowseName().getName();
+                    Object newValue = value.getValue().getValue();
+
+                    if ("Command".equals(varName)) {
+                        System.out.printf("[MES → Milo] %s.Command = %s%n", machineName, newValue);
+                        handleMesCommand(machineName, (String) newValue);
+                    }
+                })
+        );
+
+
         nodeManager.addNode(node);
         folder.addReference(new Reference(
                 folder.getNodeId(), Identifiers.Organizes,
                 node.getNodeId().expanded(), true));
+
+        System.out.println("[DEBUG] Node created: " + folder.getBrowseName().getName() + "." + tag);
     }
 
 
