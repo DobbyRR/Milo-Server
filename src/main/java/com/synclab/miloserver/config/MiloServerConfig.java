@@ -43,6 +43,9 @@ public class MiloServerConfig {
         // (2) 직접 AddressSpaceManager에 등록
         server.getAddressSpaceManager().register(namespace);
 
+        // 노드 초기화는 startup 전에 수행
+        namespace.initializeNodes();
+
         // ObjectsFolder를 먼저 초기화
         server.startup()
                 .thenRun(() -> {
