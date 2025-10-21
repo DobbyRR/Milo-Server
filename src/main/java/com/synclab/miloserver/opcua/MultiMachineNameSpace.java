@@ -127,11 +127,16 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                 .setBrowseName(new QualifiedName(namespaceIndex, tag))
                 .setDisplayName(LocalizedText.english(tag))
                 .setDataType(type)
+                .setTypeDefinition(Identifiers.BaseDataVariableType)
                 .build();
 
         // ✅ 초기값 설정
-        DataValue initValue = new DataValue(new Variant(initVal));
+        DataValue initValue = new DataValue(new Variant(initVal), null, null);
         node.setValue(initValue);
+        node.setAccessLevel(Unsigned.ubyte(AccessLevel.CurrentRead.getValue() | AccessLevel.CurrentWrite.getValue()));
+        node.setUserAccessLevel(node.getAccessLevel());
+        nodeManager.addNode(node);
+        folder.addReference(new Reference(folder.getNodeId(), Identifiers.Organizes, node.getNodeId().expanded(), true));
 
         // ✅ AccessLevel 직접 비트연산 (읽기 + 쓰기)
         UByte rwAccess = Unsigned.ubyte(
@@ -173,38 +178,38 @@ public class MultiMachineNameSpace extends ManagedNamespace {
         // Value attribute 명시적 등록
         node.setValue(new DataValue(new Variant(initVal))); // 초기값 보장
 
-        node.getFilterChain().addLast(
-                AttributeFilters.getValue(ctx -> {
-                    DataValue current = node.getValue();
-                    if (current == null || current.getValue() == null) {
-                        System.out.printf("[WARN] %s value null, returning default %s%n",
-                                node.getBrowseName().getName(), initVal);
-                        return new DataValue(new Variant(initVal));
-                    }
-                    System.out.printf("[READ] %s = %s%n",
-                            node.getBrowseName().getName(),
-                            current.getValue().getValue());
-                    return current;
-                })
-        );
+//        node.getFilterChain().addLast(
+//                AttributeFilters.getValue(ctx -> {
+//                    DataValue current = node.getValue();
+//                    if (current == null || current.getValue() == null) {
+//                        System.out.printf("[WARN] %s value null, returning default %s%n",
+//                                node.getBrowseName().getName(), initVal);
+//                        return new DataValue(new Variant(initVal));
+//                    }
+//                    System.out.printf("[READ] %s = %s%n",
+//                            node.getBrowseName().getName(),
+//                            current.getValue().getValue());
+//                    return current;
+//                })
+//        );
 
-        node.getFilterChain().addLast(
-                AttributeFilters.setValue((ctx, value) -> {
-                    node.setValue(value);
-                    System.out.printf("[WRITE] %s = %s%n",
-                            node.getBrowseName().getName(),
-                            value.getValue().getValue());
-
-                    String varName = node.getBrowseName().getName();
-                    String machineName = folder.getBrowseName().getName();
-                    Object newValue = value.getValue().getValue();
-
-                    if ("Command".equals(varName)) {
-                        System.out.printf("[MES → Milo] %s.Command = %s%n", machineName, newValue);
-                        handleMesCommand(machineName, (String) newValue);
-                    }
-                })
-        );
+//        node.getFilterChain().addLast(
+//                AttributeFilters.setValue((ctx, value) -> {
+//                    node.setValue(value);
+//                    System.out.printf("[WRITE] %s = %s%n",
+//                            node.getBrowseName().getName(),
+//                            value.getValue().getValue());
+//
+//                    String varName = node.getBrowseName().getName();
+//                    String machineName = folder.getBrowseName().getName();
+//                    Object newValue = value.getValue().getValue();
+//
+//                    if ("Command".equals(varName)) {
+//                        System.out.printf("[MES → Milo] %s.Command = %s%n", machineName, newValue);
+//                        handleMesCommand(machineName, (String) newValue);
+//                    }
+//                })
+//        );
 
 
         nodeManager.addNode(node);
@@ -283,9 +288,18 @@ public class MultiMachineNameSpace extends ManagedNamespace {
 
 
     private void simulateMachine(String nodeName, Object newValue) {
-        UaVariableNode node = (UaVariableNode)
-                nodeManager.getNode(new NodeId(namespaceIndex, nodeName)).orElse(null);
-        if (node != null) node.setValue(new DataValue(new Variant(newValue)));
+        NodeId id = new NodeId(namespaceIndex, nodeName);
+
+        nodeManager.getNode(id).ifPresentOrElse(
+                n -> {
+                    ((UaVariableNode) n).setValue(new DataValue(new Variant(newValue)));
+                    System.out.printf("[SIM] Updated %s = %.2f%n", nodeName, newValue);
+                },
+                () -> System.out.printf("[WARN] Node not found: %s%n", nodeName)
+        );
+//        UaVariableNode node = (UaVariableNode)
+//                nodeManager.getNode(new NodeId(namespaceIndex, nodeName)).orElse(null);
+//        if (node != null) node.setValue(new DataValue(new Variant(newValue)));
     }
 
     // 콜백 로깅용
