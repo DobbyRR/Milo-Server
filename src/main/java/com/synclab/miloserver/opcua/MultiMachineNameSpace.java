@@ -18,6 +18,7 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaObjectNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.delegates.AttributeDelegate;
 import org.eclipse.milo.opcua.sdk.server.nodes.filters.AttributeFilters;
+import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
@@ -38,13 +39,14 @@ public class MultiMachineNameSpace extends ManagedNamespace {
     private final NodeManager<UaNode> nodeManager;
     private final UShort namespaceIndex;
     private final List<MachineLogic> machines = new ArrayList<>();
+    private final SubscriptionModel subscriptionModel;
 
     public MultiMachineNameSpace(OpcUaServer server) {
         super(server, "urn:virtual:plc:namespace");
         this.server = server;
         this.nodeManager = getNodeContext().getNodeManager();
         this.namespaceIndex = getNamespaceIndex();
-
+        this.subscriptionModel = new SubscriptionModel(server, this);
     }
 
     /** ✅ ObjectsFolder 생성을 보장하기 위한 대기 루프 */
@@ -297,14 +299,31 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                 },
                 () -> System.out.printf("[WARN] Node not found: %s%n", nodeName)
         );
-//        UaVariableNode node = (UaVariableNode)
-//                nodeManager.getNode(new NodeId(namespaceIndex, nodeName)).orElse(null);
-//        if (node != null) node.setValue(new DataValue(new Variant(newValue)));
     }
 
     // 콜백 로깅용
     @Override
     public void onDataItemsCreated(List<DataItem> items) {
+        for (DataItem item : items) {
+            UaVariableNode node = (UaVariableNode) nodeManager
+                    .getNode(item.getReadValueId().getNodeId())
+                    .orElse(null);
+
+            if (node != null) {
+                DataValue current = node.getValue();
+                if (current == null || current.getValue() == null) {
+                    current = new DataValue(new Variant(0.0));
+                }
+
+                // ✅ 초기값 강제 푸시 (DataItem에 직접 설정)
+                item.setValue(current);
+
+                System.out.printf("[INIT PUSH] %s → %s%n",
+                        node.getBrowseName().getName(),
+                        current.getValue().getValue());
+            }
+        }
+
         System.out.println("[Namespace] onDataItemsCreated: " + items.size());
     }
 
@@ -317,7 +336,9 @@ public class MultiMachineNameSpace extends ManagedNamespace {
     public void onDataItemsDeleted(List<DataItem> items) { }
 
     @Override
-    public void onMonitoringModeChanged(List<MonitoredItem> items) { }
+    public void onMonitoringModeChanged(List<MonitoredItem> items) {
+        subscriptionModel.onMonitoringModeChanged(items);
+    }
 }
 
 
