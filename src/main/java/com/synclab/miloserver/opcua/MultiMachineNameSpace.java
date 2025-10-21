@@ -18,7 +18,6 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaObjectNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.delegates.AttributeDelegate;
 import org.eclipse.milo.opcua.sdk.server.nodes.filters.AttributeFilters;
-import org.eclipse.milo.opcua.stack.core.AttributeId;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
@@ -33,9 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import static org.eclipse.milo.opcua.sdk.core.AccessLevel.CurrentRead;
-import static org.eclipse.milo.opcua.sdk.core.AccessLevel.CurrentWrite;
 
 public class MultiMachineNameSpace extends ManagedNamespace {
     private final OpcUaServer server;
@@ -131,11 +127,9 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                 .setBrowseName(new QualifiedName(namespaceIndex, tag))
                 .setDisplayName(LocalizedText.english(tag))
                 .setDataType(type)
-                .setValue(new DataValue(new Variant(initVal)))
                 .build();
 
         // ✅ 초기값 설정
-//        node.setValue(new DataValue(new Variant(initVal)));
         DataValue initValue = new DataValue(new Variant(initVal));
         node.setValue(initValue);
 
@@ -284,8 +278,9 @@ public class MultiMachineNameSpace extends ManagedNamespace {
     private void startSimulation() {
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             simulateMachine("Machine1.Temperature", 20 + Math.random() * 5);
-        }, 2, 5, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS);
     }
+
 
     private void simulateMachine(String nodeName, Object newValue) {
         UaVariableNode node = (UaVariableNode)
