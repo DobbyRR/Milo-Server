@@ -31,6 +31,7 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +41,7 @@ public class MultiMachineNameSpace extends ManagedNamespace {
     private final UShort namespaceIndex;
     private final List<MachineLogic> machines = new ArrayList<>();
     private final SubscriptionModel subscriptionModel;
+    private final List<DataItem> activeItems = new CopyOnWriteArrayList<>();
 
     public MultiMachineNameSpace(OpcUaServer server) {
         super(server, "urn:virtual:plc:namespace");
@@ -291,15 +293,25 @@ public class MultiMachineNameSpace extends ManagedNamespace {
 
     private void simulateMachine(String nodeName, Object newValue) {
         NodeId id = new NodeId(namespaceIndex, nodeName);
+        UaVariableNode node = (UaVariableNode) nodeManager.getNode(id).orElse(null);
+        if (node == null) {
+            System.out.printf("[WARN] Node not found: %s%n", nodeName);
+            return;
+        }
 
-        nodeManager.getNode(id).ifPresentOrElse(
-                n -> {
-                    ((UaVariableNode) n).setValue(new DataValue(new Variant(newValue)));
-                    System.out.printf("[SIM] Updated %s = %.2f%n", nodeName, newValue);
-                },
-                () -> System.out.printf("[WARN] Node not found: %s%n", nodeName)
-        );
+        DataValue value = new DataValue(new Variant(newValue));
+        node.setValue(value);
+
+        // ✅ 구독중인 클라이언트(Node-RED 등)에 강제 푸시
+        for (DataItem item : activeItems) {
+            if (item.getReadValueId().getNodeId().equals(id)) {
+                item.setValue(value);
+            }
+        }
+
+        System.out.printf("[SIM] %s updated to %s%n", nodeName, newValue);
     }
+
 
     // 콜백 로깅용
     @Override
@@ -323,7 +335,7 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                         current.getValue().getValue());
             }
         }
-
+        activeItems.addAll(items);
         System.out.println("[Namespace] onDataItemsCreated: " + items.size());
     }
 
@@ -333,7 +345,10 @@ public class MultiMachineNameSpace extends ManagedNamespace {
     }
 
     @Override
-    public void onDataItemsDeleted(List<DataItem> items) { }
+    public void onDataItemsDeleted(List<DataItem> items) {
+        activeItems.removeAll(items);
+
+    }
 
     @Override
     public void onMonitoringModeChanged(List<MonitoredItem> items) {
