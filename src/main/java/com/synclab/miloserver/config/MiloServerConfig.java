@@ -22,7 +22,7 @@ public class MiloServerConfig {
     public OpcUaServer opcUaServer(UaNodeManager manager) {
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("192.168.0.18") // MILO 서버에서 접속중인 IP
+                .setHostname("192.168.0.27") // MILO 서버에서 접속중인 IP
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)
@@ -50,7 +50,7 @@ public class MiloServerConfig {
         server.startup()
                 .thenRun(() -> {
                     namespace.initializeNodes();
-                    System.out.println("✅ Milo OPC UA Server started and namespace initialized.");
+                    System.out.println(" Milo OPC UA Server started and namespace initialized.");
                     System.out.printf("Namespace Index: %s%n", namespace.getNamespaceIndex());
                 })
                 .exceptionally(ex -> {
