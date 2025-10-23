@@ -3,8 +3,10 @@ package com.synclab.miloserver.config;
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UaNodeManager;
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
+import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespace;
 import org.eclipse.milo.opcua.sdk.server.api.config.OpcUaServerConfig;
 import org.eclipse.milo.opcua.sdk.server.api.config.OpcUaServerConfigBuilder;
+import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
 import org.eclipse.milo.opcua.stack.server.EndpointConfiguration;
@@ -19,10 +21,11 @@ import java.util.concurrent.ExecutionException;
 public class MiloServerConfig {
 
     @Bean(destroyMethod = "shutdown")
-    public OpcUaServer opcUaServer(UaNodeManager manager) {
+    public OpcUaServer opcUaServer(UaNodeManager manager) throws Exception {
+
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("192.168.0.27") // MILO 서버에서 접속중인 IP
+                .setHostname("192.168.0.27")
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)
@@ -36,29 +39,28 @@ public class MiloServerConfig {
                 .build();
 
         OpcUaServer server = new OpcUaServer(config);
-
-        // (1) Namespace 인스턴스 생성
-        MultiMachineNameSpace namespace = new MultiMachineNameSpace(server);
-
-        // (2) 직접 AddressSpaceManager에 등록
+        MultiMachineNameSpace namespace = new MultiMachineNameSpace(server, "urn:synclab:milo:namespace");
         server.getAddressSpaceManager().register(namespace);
 
-        // 노드 초기화는 startup 전에 수행
-        namespace.initializeNodes();
+        // 1️⃣ 서버 기동
+        server.startup().get();
+        System.out.println("[DEBUG] After startup(), checking ObjectsFolder...");
 
-        // ObjectsFolder를 먼저 초기화
-        server.startup()
-                .thenRun(() -> {
-                    namespace.initializeNodes();
-                    System.out.println(" Milo OPC UA Server started and namespace initialized.");
-                    System.out.printf("Namespace Index: %s%n", namespace.getNamespaceIndex());
-                })
-                .exceptionally(ex -> {
-                    ex.printStackTrace();
-                    return null;
-                });
+        System.out.println("✅ Milo OPC UA Server started and namespace initialized.");
+        System.out.printf("Namespace Index: %s%n", namespace.getNamespaceIndex());
 
         return server;
+    }
+
+    @Bean
+    public MultiMachineNameSpace multiMachineNameSpace(OpcUaServer server) {
+        MultiMachineNameSpace namespace =
+                new MultiMachineNameSpace(server, "urn:synclab:milo:server");
+
+        // ✅ 0.6.12에서는 getNamespaceManager() → getAddressSpaceManager()
+        server.getAddressSpaceManager().register(namespace);
+
+        return namespace;
     }
 
     @Bean

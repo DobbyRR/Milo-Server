@@ -25,6 +25,9 @@ tasks.withType(JavaExec).configureEach {
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://repo.eclipse.org/content/repositories/milo/"
+    }
 }
 
 configurations {
@@ -54,9 +57,6 @@ dependencies {
 
     implementation 'ch.qos.logback:logback-classic:1.5.6'
     implementation 'ch.qos.logback:logback-core:1.5.6'
-
-    // ⚠️ server-examples 제거
-    // implementation 'org.eclipse.milo:server-examples:0.6.10'  ← 삭제
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
