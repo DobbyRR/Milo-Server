@@ -1,10 +1,12 @@
 package com.synclab.miloserver.opcua;
 
+import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
 import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespace;
 import org.eclipse.milo.opcua.sdk.server.api.DataItem;
 import org.eclipse.milo.opcua.sdk.server.api.MonitoredItem;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
+import org.eclipse.milo.opcua.sdk.server.nodes.UaNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
@@ -28,7 +30,7 @@ public class MultiMachineNameSpace extends ManagedNamespace {
         super(server, namespaceUri);
         this.server = server;
         this.subscriptionModel = new SubscriptionModel(server, this);
-        instance = this;
+//        instance = this;
 
         UShort nsIdx = getNamespaceIndex();
 
@@ -43,19 +45,12 @@ public class MultiMachineNameSpace extends ManagedNamespace {
         // Node 등록
         getNodeContext().getNodeManager().addNode(rootFolder);
 
-        // ObjectsFolder와 Organizes 관계로 연결
-        rootFolder.addReference(new Reference(
-                rootFolder.getNodeId(),
-                Identifiers.Organizes,
-                Identifiers.ObjectsFolder.expanded(),
-                false
-        ));
     }
 
     /** 루트 폴더 반환 */
-    public UaFolderNode getRootFolder() {
-        return rootFolder;
-    }
+//    public UaFolderNode getRootFolder() {
+//        return rootFolder;
+//    }
 
     /**
      * 서버 시작 시 호출되어 노드 트리 구조를 초기화하는 메서드
@@ -64,29 +59,21 @@ public class MultiMachineNameSpace extends ManagedNamespace {
         System.out.println("[DEBUG] AddressSpaceManager class: "
                 + getServer().getAddressSpaceManager().getClass().getName());
 
-        UShort nsIndex = getNamespaceIndex();
+        // forward reference: source = NS0 ObjectsFolder, target = our Machines
+        getNodeContext().getNodeManager().addReference(new Reference(
+                Identifiers.ObjectsFolder,                    // source (NS0)
+                Identifiers.Organizes,                        // reference type
+                rootFolder.getNodeId().expanded(),            // target
+                true                                          // forward = parent→child
+        ));
 
-        // ✅ NodeContext 내부 NodeManager에서 ObjectsFolder 탐색
-        UaFolderNode objectsFolder = getNodeContext()
-                .getNodeManager()
-                .getNode(Identifiers.ObjectsFolder)
-                .filter(n -> n instanceof UaFolderNode)
-                .map(n -> (UaFolderNode) n)
-                .orElseThrow(() ->
-                        new IllegalStateException("ObjectsFolder not found in NodeContext."));
+        // 예시 변수 노드(정방향으로 부모=Machines에 달아줌)
+        addVariableNode(rootFolder, "Factory.Status", "RUNNING");
 
-        // ✅ 공장 관련 노드 생성
-        addVariableNode(objectsFolder, "Factory.Status", "RUNNING");
-        addVariableNode(objectsFolder, "Factory.Throughput", 120);
+        // ✅ 설비 UnitLogic 인스턴스 생성 및 등록
+        new TrayCleaner01("TrayCleaner01", rootFolder, this);
 
-//        if (objectsFolder == null) {
-//            throw new IllegalStateException("ObjectsFolder not found in NodeContext.");
-//        }
-
-        // ✅ 공장 관련 노드 생성 (예시)
-        addVariableNode(objectsFolder, "Factory.Status", "RUNNING");
-        addVariableNode(objectsFolder, "Factory.Throughput", 120);
-
+        System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");
         System.out.println("[DEBUG] namespace index: " + getNamespaceIndex());
     }
@@ -109,7 +96,7 @@ public class MultiMachineNameSpace extends ManagedNamespace {
                 parent.getNodeId(),
                 Identifiers.Organizes,
                 node.getNodeId().expanded(),
-                false
+                true
         ));
 
         return node;

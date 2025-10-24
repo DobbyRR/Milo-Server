@@ -41,6 +41,15 @@ configurations {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force "org.eclipse.milo:sdk-server:0.6.12",
+                "org.eclipse.milo:sdk-core:0.6.12",
+                "org.eclipse.milo:stack-server:0.6.12",
+                "org.eclipse.milo:stack-core:0.6.12"
+    }
+}
+
 dependencies {
     // ✅ Spring Boot 기본
     implementation 'org.springframework.boot:spring-boot-starter'
@@ -60,6 +69,8 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
+
+
 
 tasks.named('test') {
     useJUnitPlatform()
