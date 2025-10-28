@@ -25,7 +25,7 @@ public class MiloServerConfig {
 
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("192.168.0.27")
+                .setHostname("192.168.0.38")
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)
@@ -46,7 +46,7 @@ public class MiloServerConfig {
         server.startup().get();
         System.out.println("[DEBUG] After startup(), checking ObjectsFolder...");
 
-        System.out.println("✅ Milo OPC UA Server started and namespace initialized.");
+        System.out.println(" Milo OPC UA Server started and namespace initialized.");
         System.out.printf("Namespace Index: %s%n", namespace.getNamespaceIndex());
 
         return server;
@@ -57,7 +57,7 @@ public class MiloServerConfig {
         MultiMachineNameSpace namespace =
                 new MultiMachineNameSpace(server, "urn:synclab:milo:server");
 
-        // ✅ 0.6.12에서는 getNamespaceManager() → getAddressSpaceManager()
+        // 0.6.12에서는 getNamespaceManager() → getAddressSpaceManager()
         server.getAddressSpaceManager().register(namespace);
 
         return namespace;

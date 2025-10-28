@@ -11,6 +11,7 @@ public class TrayCleaner02 extends UnitLogic {
 
     private long stateStartTime = System.currentTimeMillis();
     private int cycleCount = 0;
+    private double idlePressurePhase = Math.PI / 3;
 
     // 트레이 클리너 개별 항목
     private final Map<String, Object> localTelemetry = new HashMap<>();
@@ -29,34 +30,39 @@ public class TrayCleaner02 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("conveyor_id", ns.addVariableNode(folder, name + ".conveyor_id", "CV_01_BRANCH_A"));
-        telemetryNodes.put("source_unit", ns.addVariableNode(folder, name + ".source_unit", "LOAD_UNIT"));
-        telemetryNodes.put("target_unit", ns.addVariableNode(folder, name + ".target_unit", "ELECTRODE_UNIT"));
-        telemetryNodes.put("direction", ns.addVariableNode(folder, name + ".direction", "FWD"));
-        telemetryNodes.put("branch_state", ns.addVariableNode(folder, name + ".branch_state", "CENTER"));
-        telemetryNodes.put("occupied", ns.addVariableNode(folder, name + ".occupied", false));
-        telemetryNodes.put("tray_id", ns.addVariableNode(folder, name + ".tray_id", ""));
-        telemetryNodes.put("speed", ns.addVariableNode(folder, name + ".speed", 0.0));
-        telemetryNodes.put("jam_alarm", ns.addVariableNode(folder, name + ".jam_alarm", false));
-        telemetryNodes.put("sensor_status", ns.addVariableNode(folder, name + ".sensor_status", "{}"));
-        telemetryNodes.put("transfer_time", ns.addVariableNode(folder, name + ".transfer_time", 0.0));
+        telemetryNodes.put("conveyor_id", ns.addVariableNode(machineFolder, name + ".conveyor_id", "CV_01_BRANCH_A"));
+        telemetryNodes.put("source_unit", ns.addVariableNode(machineFolder, name + ".source_unit", "LOAD_UNIT"));
+        telemetryNodes.put("target_unit", ns.addVariableNode(machineFolder, name + ".target_unit", "ELECTRODE_UNIT"));
+        telemetryNodes.put("direction", ns.addVariableNode(machineFolder, name + ".direction", "FWD"));
+        telemetryNodes.put("branch_state", ns.addVariableNode(machineFolder, name + ".branch_state", "CENTER"));
+        telemetryNodes.put("occupied", ns.addVariableNode(machineFolder, name + ".occupied", false));
+        telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", ""));
+        telemetryNodes.put("speed", ns.addVariableNode(machineFolder, name + ".speed", 0.0));
+        telemetryNodes.put("jam_alarm", ns.addVariableNode(machineFolder, name + ".jam_alarm", false));
+        telemetryNodes.put("sensor_status", ns.addVariableNode(machineFolder, name + ".sensor_status", "{}"));
+        telemetryNodes.put("transfer_time", ns.addVariableNode(machineFolder, name + ".transfer_time", 0.0));
 
-        telemetryNodes.put("surface_cleanliness", ns.addVariableNode(folder, name + ".surface_cleanliness", 0.0));
-        telemetryNodes.put("static_level", ns.addVariableNode(folder, name + ".static_level", 0.0));
-        telemetryNodes.put("air_pressure", ns.addVariableNode(folder, name + ".air_pressure", 0.0));
-        telemetryNodes.put("tray_tag_valid", ns.addVariableNode(folder, name + ".tray_tag_valid", false));
+        telemetryNodes.put("surface_cleanliness", ns.addVariableNode(machineFolder, name + ".surface_cleanliness", 0.0));
+        telemetryNodes.put("static_level", ns.addVariableNode(machineFolder, name + ".static_level", 0.0));
+        telemetryNodes.put("air_pressure", ns.addVariableNode(machineFolder, name + ".air_pressure", 0.0));
+        telemetryNodes.put("tray_tag_valid", ns.addVariableNode(machineFolder, name + ".tray_tag_valid", false));
     }
 
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         switch (command.toUpperCase()) {
             case "START":
-                if (state.equals("IDLE")) changeState(ns, "STARTING");
+                if (state.equals("IDLE")) {
+                    startSimulation(ns);
+                    changeState(ns, "STARTING");
+                }
                 break;
             case "RESET":
+                startSimulation(ns);
                 changeState(ns, "RESETTING");
                 break;
             case "STOP":
+                requestSimulationStop();
                 changeState(ns, "STOPPING");
                 break;
         }
@@ -65,6 +71,15 @@ public class TrayCleaner02 extends UnitLogic {
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
+            case "IDLE":
+                idlePressurePhase += 0.22;
+                if (idlePressurePhase > Math.PI * 2) {
+                    idlePressurePhase -= Math.PI * 2;
+                }
+                double idlePressure = 4.9 + Math.sin(idlePressurePhase) * 0.3 + (Math.random() - 0.5) * 0.06;
+                updateTelemetry(ns, "air_pressure", idlePressure);
+                break;
+
             case "STARTING":
                 if (timeInState(2000)) changeState(ns, "EXECUTE");
                 break;
@@ -112,6 +127,7 @@ public class TrayCleaner02 extends UnitLogic {
         this.state = newState;
         this.stateStartTime = System.currentTimeMillis();
         updateTelemetry(ns,"state", newState);
+        handleStateTransition(newState);
         System.out.printf("[%s] → %s%n", name, newState);
     }
 

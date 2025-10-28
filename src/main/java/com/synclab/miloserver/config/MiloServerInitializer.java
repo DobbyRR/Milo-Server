@@ -2,6 +2,7 @@ package com.synclab.miloserver.config;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
+import jakarta.annotation.PreDestroy;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -22,8 +23,18 @@ public class MiloServerInitializer {
         try {
             System.out.println("[INFO] Waiting for ObjectsFolder...");
             Thread.sleep(2000); // 최소 2초 지연 (보장 대기)
+            namespace.startup();
             namespace.initializeNodes();
             System.out.println("[INFO] initializeNodes() completed successfully.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @PreDestroy
+    public void shutdownNamespace() {
+        try {
+            namespace.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
         }
