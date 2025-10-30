@@ -34,7 +34,9 @@ public abstract class UnitLogic {
     protected int producedQuantity = 0;
     protected int okCount = 0;
     protected int ngCount = 0;
-    protected double productionAccumulator = 0.0;
+    protected double cycleAccumulator = 0.0;
+    protected int unitsPerCycle = 1;
+    protected int lastProducedIncrement = 0;
     protected boolean awaitingMesAck = false;
     protected boolean orderActive = false;
     protected String orderStatus = "IDLE";
@@ -207,6 +209,20 @@ public abstract class UnitLogic {
         return defaultPpm;
     }
 
+    public void setUnitsPerCycle(int unitsPerCycle) {
+        if (unitsPerCycle > 0) {
+            this.unitsPerCycle = unitsPerCycle;
+        }
+    }
+
+    public int getUnitsPerCycle() {
+        return unitsPerCycle;
+    }
+
+    public int getLastProducedIncrement() {
+        return lastProducedIncrement;
+    }
+
     public String getName() { return name; }
 
     public void setLineController(ProductionLineController lineController) {
@@ -278,7 +294,8 @@ public abstract class UnitLogic {
         this.targetQuantity = newTargetQuantity;
         this.ppm = effectivePpm;
         this.producedQuantity = 0;
-        this.productionAccumulator = 0.0;
+        this.cycleAccumulator = 0.0;
+        this.lastProducedIncrement = 0;
         this.okCount = 0;
         this.ngCount = 0;
         updateTelemetry(ns, "order_no", orderNo);
@@ -296,19 +313,25 @@ public abstract class UnitLogic {
     }
 
     protected boolean accumulateProduction(MultiMachineNameSpace ns, double secondsElapsed) {
-        if (!orderActive || targetQuantity <= 0 || ppm <= 0) {
-            return false;
+        lastProducedIncrement = 0;
+        if (!orderActive || targetQuantity <= 0 || ppm <= 0 || unitsPerCycle <= 0) {
+            return producedQuantity >= targetQuantity;
         }
-        productionAccumulator += (ppm / 60.0) * secondsElapsed;
-        int producedIncrement = (int) productionAccumulator;
-        if (producedIncrement > 0) {
-            productionAccumulator -= producedIncrement;
-            int updated = producedQuantity + producedIncrement;
+
+        double cyclesPerMinute = (double) ppm / unitsPerCycle;
+        cycleAccumulator += (cyclesPerMinute / 60.0) * secondsElapsed;
+        int completedCycles = (int) cycleAccumulator;
+        if (completedCycles > 0) {
+            cycleAccumulator -= completedCycles;
+            int increment = completedCycles * unitsPerCycle;
+            int updated = producedQuantity + increment;
             if (updated > targetQuantity) {
+                increment = targetQuantity - producedQuantity;
                 updated = targetQuantity;
-                productionAccumulator = 0.0;
+                cycleAccumulator = 0.0;
             }
-            if (updated != producedQuantity) {
+            if (increment > 0) {
+                lastProducedIncrement = increment;
                 updateProducedQuantity(ns, updated);
             }
         }
@@ -337,8 +360,9 @@ public abstract class UnitLogic {
         this.orderNo = "";
         this.targetQuantity = 0;
         this.producedQuantity = 0;
-        this.productionAccumulator = 0.0;
         this.orderActive = false;
+        this.cycleAccumulator = 0.0;
+        this.lastProducedIncrement = 0;
         updateTelemetry(ns, "order_no", orderNo);
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, producedQuantity);

@@ -15,7 +15,8 @@ public class TrayCleaner02 extends UnitLogic {
         this.machineNo = 1;
         this.equipmentId = "TC-02";
         this.processId = "DryClean";
-        this.defaultPpm = 110;
+        setUnitsPerCycle(36);
+        setDefaultPpm(66); // 1.83 trays per minute * 36 units
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -88,12 +89,11 @@ public class TrayCleaner02 extends UnitLogic {
                 boolean staticOk = staticLevel <= 0.06;
                 boolean pressureOk = airPressure >= 5.4 && airPressure <= 6.6;
 
-                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean cycleOk = cleanOk && staticOk && pressureOk;
-                    updateQualityCounts(ns, cycleOk ? producedDiff : 0, cycleOk ? 0 : producedDiff);
+                    updateQualityCounts(ns, cycleOk ? producedUnits : 0, cycleOk ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

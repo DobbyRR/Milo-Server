@@ -76,10 +76,10 @@ public class AssemblyUnit01 extends UnitLogic {
 
                 int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean measurementOk = alignmentOk && tensionOk && weldOk && leakPass && fillOk;
-                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                    updateQualityCounts(ns, measurementOk ? producedUnits : 0, measurementOk ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

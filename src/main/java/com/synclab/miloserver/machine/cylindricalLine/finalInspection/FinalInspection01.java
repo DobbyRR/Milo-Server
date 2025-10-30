@@ -63,14 +63,13 @@ public class FinalInspection01 extends UnitLogic {
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.08);
 
-                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean visionOk = vision >= 93;
                     boolean electricalOk = electrical >= 2.5 && electrical <= 3.5;
                     boolean pass = visionOk && electricalOk && safetyPass && functionPass;
-                    updateQualityCounts(ns, pass ? producedDiff : 0, pass ? 0 : producedDiff);
+                    updateQualityCounts(ns, pass ? producedUnits : 0, pass ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

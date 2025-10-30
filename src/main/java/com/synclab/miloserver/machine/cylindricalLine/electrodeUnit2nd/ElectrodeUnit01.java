@@ -80,12 +80,11 @@ public class ElectrodeUnit01 extends UnitLogic {
                 boolean pressureOk = pressure >= 4.7 && pressure <= 4.9;
                 boolean slittingOk = slitting <= 0.15;
 
-                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean measurementOk = viscosityOk && tempOk && thicknessOk && ovenOk && pressureOk && slittingOk;
-                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                    updateQualityCounts(ns, measurementOk ? producedUnits : 0, measurementOk ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

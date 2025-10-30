@@ -74,12 +74,11 @@ public class FormationUnit01 extends UnitLogic {
                 boolean temperatureOk = temperature >= 27 && temperature <= 32;
                 boolean resistanceOk = resistance >= 1.7 && resistance <= 1.9;
 
-                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean measurementOk = voltageOk && currentOk && temperatureOk && resistanceOk;
-                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                    updateQualityCounts(ns, measurementOk ? producedUnits : 0, measurementOk ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

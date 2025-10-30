@@ -74,12 +74,11 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 boolean weldOk = weld <= 0.85;
                 boolean torqueOk = torque >= 5.2 && torque <= 5.8;
 
-                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedDiff = producedQuantity - beforeQty;
-                if (producedDiff > 0) {
+                int producedUnits = getLastProducedIncrement();
+                if (producedUnits > 0) {
                     boolean measurementOk = alignmentOk && resistanceOk && weldOk && torqueOk && bmsOk;
-                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                    updateQualityCounts(ns, measurementOk ? producedUnits : 0, measurementOk ? 0 : producedUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
