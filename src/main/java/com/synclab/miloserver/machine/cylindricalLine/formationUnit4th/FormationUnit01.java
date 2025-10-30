@@ -18,7 +18,7 @@ public class FormationUnit01 extends UnitLogic {
         this.processId = "Formation";
         this.defaultPpm = 70;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.4, 0.06, 2.5, 0.4);
+        configureEnergyProfile(1.5, 0.2, 15.0, 1.8);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);

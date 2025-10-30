@@ -17,7 +17,7 @@ public class TrayCleaner02 extends UnitLogic {
         this.processId = "DryClean";
         setUnitsPerCycle(36);
         setDefaultPpm(66); // 1.83 trays per minute * 36 units
-        configureEnergyProfile(0.12, 0.02, 0.55, 0.1);
+        configureEnergyProfile(0.15, 0.03, 2.8, 0.35);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
