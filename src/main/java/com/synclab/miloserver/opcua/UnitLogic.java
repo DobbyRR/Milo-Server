@@ -73,32 +73,31 @@ public abstract class UnitLogic {
 
     /** 공통 telemetry 등록 (PackML/OEE 기반) */
     protected void setupCommonTelemetry(MultiMachineNameSpace ns) {
-//        telemetryNodes.put("equipment_id", ns.addVariableNode(machineFolder, name + ".equipment_id", equipmentId));
-        telemetryNodes.put("equipment_id", ns.addVariableNode(machineFolder,".equipment_id", equipmentId));
-        telemetryNodes.put("process_id", ns.addVariableNode(machineFolder,".process_id", processId));
-        telemetryNodes.put("unit_type", ns.addVariableNode(machineFolder, ".unit_type", unitType));
-        telemetryNodes.put("line_id", ns.addVariableNode(machineFolder,  ".line_id", lineId));
-        telemetryNodes.put("machine_no", ns.addVariableNode(machineFolder, ".machine_no", machineNo));
-        telemetryNodes.put("state", ns.addVariableNode(machineFolder,  ".state", state));
-        telemetryNodes.put("mode_state", ns.addVariableNode(machineFolder, ".mode_state", modeState));
-        telemetryNodes.put("PPM", ns.addVariableNode(machineFolder,  ".PPM", ppm));
-        telemetryNodes.put("cycle_time", ns.addVariableNode(machineFolder, ".cycle_time", cycleTime));
-        telemetryNodes.put("uptime", ns.addVariableNode(machineFolder,  ".uptime", uptime));
-        telemetryNodes.put("downtime", ns.addVariableNode(machineFolder,  ".downtime", downtime));
-        telemetryNodes.put("availability", ns.addVariableNode(machineFolder,  ".availability", availability));
-        telemetryNodes.put("performance", ns.addVariableNode(machineFolder,  ".performance", performance));
-        telemetryNodes.put("quality_rate", ns.addVariableNode(machineFolder,".quality_rate", qualityRate));
-        telemetryNodes.put("OEE", ns.addVariableNode(machineFolder, ".OEE", oee));
-        telemetryNodes.put("alarm_code", ns.addVariableNode(machineFolder,  ".alarm_code", alarmCode));
-        telemetryNodes.put("alarm_level", ns.addVariableNode(machineFolder,  ".alarm_level", alarmLevel));
-        telemetryNodes.put("energy_consumption", ns.addVariableNode(machineFolder, ".energy_consumption", energyConsumption));
-        telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, ".last_maintenance", lastMaintenance.toString()));
-        telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder,".tray_id", trayId));
-        telemetryNodes.put("order_no", ns.addVariableNode(machineFolder,".order_no", orderNo));
-        telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder,".order_target_qty", targetQuantity));
-        telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder,".order_produced_qty", producedQuantity));
-        telemetryNodes.put("order_status", ns.addVariableNode(machineFolder,".order_status", orderStatus));
-        telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder,".mes_ack_pending", awaitingMesAck));
+        telemetryNodes.put("equipment_id", ns.addVariableNode(machineFolder, name + ".equipment_id", equipmentId));
+        telemetryNodes.put("process_id", ns.addVariableNode(machineFolder, name + ".process_id", processId));
+        telemetryNodes.put("unit_type", ns.addVariableNode(machineFolder, name + ".unit_type", unitType));
+        telemetryNodes.put("line_id", ns.addVariableNode(machineFolder,  name + ".line_id", lineId));
+        telemetryNodes.put("machine_no", ns.addVariableNode(machineFolder, name + ".machine_no", machineNo));
+        telemetryNodes.put("state", ns.addVariableNode(machineFolder,  name + ".state", state));
+        telemetryNodes.put("mode_state", ns.addVariableNode(machineFolder, name + ".mode_state", modeState));
+        telemetryNodes.put("PPM", ns.addVariableNode(machineFolder,  name + ".PPM", ppm));
+        telemetryNodes.put("cycle_time", ns.addVariableNode(machineFolder, name + ".cycle_time", cycleTime));
+        telemetryNodes.put("uptime", ns.addVariableNode(machineFolder,  name + ".uptime", uptime));
+        telemetryNodes.put("downtime", ns.addVariableNode(machineFolder,  name + ".downtime", downtime));
+        telemetryNodes.put("availability", ns.addVariableNode(machineFolder,  name + ".availability", availability));
+        telemetryNodes.put("performance", ns.addVariableNode(machineFolder,  name + ".performance", performance));
+        telemetryNodes.put("quality_rate", ns.addVariableNode(machineFolder, name + ".quality_rate", qualityRate));
+        telemetryNodes.put("OEE", ns.addVariableNode(machineFolder, name + ".OEE", oee));
+        telemetryNodes.put("alarm_code", ns.addVariableNode(machineFolder,  name + ".alarm_code", alarmCode));
+        telemetryNodes.put("alarm_level", ns.addVariableNode(machineFolder,  name + ".alarm_level", alarmLevel));
+        telemetryNodes.put("energy_consumption", ns.addVariableNode(machineFolder, name + ".energy_consumption", energyConsumption));
+        telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, name + ".last_maintenance", lastMaintenance.toString()));
+        telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
+        telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
+        telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder, name + ".order_target_qty", targetQuantity));
+        telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
+        telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
+        telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
     }
 
     /** Telemetry 값 업데이트 및 구독자 알림 */
