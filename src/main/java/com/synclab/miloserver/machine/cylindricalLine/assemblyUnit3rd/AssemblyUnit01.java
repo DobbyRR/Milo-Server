@@ -16,6 +16,8 @@ public class AssemblyUnit01 extends UnitLogic {
         this.equipmentId = "AU-01";
         this.processId = "Assembly";
         this.defaultPpm = 80;
+        setUnitsPerCycle(1);
+        configureEnergyProfile(0.35, 0.05, 1.6, 0.3);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -44,6 +46,7 @@ public class AssemblyUnit01 extends UnitLogic {
                 alignmentPhase += 0.05;
                 updateTelemetry(ns, "stack_alignment", 0.2 + Math.abs(Math.sin(alignmentPhase)) * 0.05);
                 updateTelemetry(ns, "winding_tension", 18 + (Math.random() - 0.5));
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":
@@ -67,7 +70,7 @@ public class AssemblyUnit01 extends UnitLogic {
                 updateTelemetry(ns, "leak_test_result", leakPass ? "PASS" : "FAIL");
                 updateTelemetry(ns, "electrolyte_fill", fill);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.15);
+                applyOperatingEnergy(ns);
 
                 boolean alignmentOk = alignment <= 0.07;
                 boolean tensionOk = tension >= 19.5 && tension <= 20.5;

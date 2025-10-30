@@ -212,6 +212,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         if (lineController != null) {
             lineController.registerMachine(machine);
         }
+        machine.startSimulation(this);
     }
 
     private void registerCommandNode(UaFolderNode folder, UnitLogic machine) {

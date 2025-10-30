@@ -16,6 +16,8 @@ public class CellCleaner01 extends UnitLogic {
         this.equipmentId = "CC-01";
         this.processId = "CellCleaning";
         this.defaultPpm = 55;
+        setUnitsPerCycle(1);
+        configureEnergyProfile(0.25, 0.04, 1.2, 0.25);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -68,7 +70,7 @@ public class CellCleaner01 extends UnitLogic {
                 updateTelemetry(ns, "drying_temperature", dryingTemp);
                 updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.1);
+                applyOperatingEnergy(ns);
 
                 boolean powerOk = power >= 115 && power <= 125;
                 boolean moistureOk = residualMoisture <= 3.0;

@@ -48,14 +48,16 @@ public abstract class UnitLogic {
     protected double qualityRate = 100.0;
     protected double oee = 100.0;
     protected double cycleTime = 0.0;
-    protected double energyConsumption = 0.0;
+    protected double energyUsage = 0.0;
     protected int ppm = 0;
     protected int defaultPpm = 60;
     protected String alarmCode = "";
     protected String alarmLevel = "";
     protected OffsetDateTime lastMaintenance = OffsetDateTime.now();
-    protected double idleEnergyDrift = 0.01;
-    protected double idleDriftAccumulator = 0.0;
+    protected double idleEnergyBase = 0.2;
+    protected double idleEnergyJitter = 0.05;
+    protected double operatingEnergyBase = 1.0;
+    protected double operatingEnergyJitter = 0.2;
 
     protected final Map<String, UaVariableNode> telemetryNodes = new HashMap<>();
     private final ScheduledExecutorService simulationExecutor =
@@ -97,7 +99,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("OEE", ns.addVariableNode(machineFolder, name + ".OEE", oee));
         telemetryNodes.put("alarm_code", ns.addVariableNode(machineFolder,  name + ".alarm_code", alarmCode));
         telemetryNodes.put("alarm_level", ns.addVariableNode(machineFolder,  name + ".alarm_level", alarmLevel));
-        telemetryNodes.put("energy_consumption", ns.addVariableNode(machineFolder, name + ".energy_consumption", energyConsumption));
+        telemetryNodes.put("energy_usage", ns.addVariableNode(machineFolder, name + ".energy_usage", energyUsage));
         telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, name + ".last_maintenance", lastMaintenance.toString()));
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
@@ -229,6 +231,13 @@ public abstract class UnitLogic {
         return lastProducedIncrement;
     }
 
+    public void configureEnergyProfile(double idleBase, double idleJitter, double operatingBase, double operatingJitter) {
+        if (idleBase >= 0) this.idleEnergyBase = idleBase;
+        if (idleJitter >= 0) this.idleEnergyJitter = idleJitter;
+        if (operatingBase >= 0) this.operatingEnergyBase = operatingBase;
+        if (operatingJitter >= 0) this.operatingEnergyJitter = operatingJitter;
+    }
+
     public String getName() { return name; }
 
     public void setLineController(ProductionLineController lineController) {
@@ -291,12 +300,15 @@ public abstract class UnitLogic {
     }
 
     protected void applyIdleDrift(MultiMachineNameSpace ns) {
-        idleDriftAccumulator += idleEnergyDrift;
-        if (idleDriftAccumulator >= 1.0) {
-            energyConsumption += idleDriftAccumulator;
-            idleDriftAccumulator = 0.0;
-            updateTelemetry(ns, "energy_consumption", energyConsumption);
-        }
+        double jitter = (Math.random() - 0.5) * 2.0 * idleEnergyJitter;
+        energyUsage = Math.max(0.0, idleEnergyBase + jitter);
+        updateTelemetry(ns, "energy_usage", energyUsage);
+    }
+
+    protected void applyOperatingEnergy(MultiMachineNameSpace ns) {
+        double jitter = (Math.random() - 0.5) * 2.0 * operatingEnergyJitter;
+        energyUsage = Math.max(0.0, operatingEnergyBase + jitter);
+        updateTelemetry(ns, "energy_usage", energyUsage);
     }
 
     public synchronized void startOrder(MultiMachineNameSpace ns, String newOrderNo, int newTargetQuantity, int newPpm) {

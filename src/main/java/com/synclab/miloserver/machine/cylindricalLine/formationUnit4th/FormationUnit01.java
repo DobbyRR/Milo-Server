@@ -17,6 +17,8 @@ public class FormationUnit01 extends UnitLogic {
         this.equipmentId = "FU-01";
         this.processId = "Formation";
         this.defaultPpm = 70;
+        setUnitsPerCycle(1);
+        configureEnergyProfile(0.4, 0.06, 2.5, 0.4);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -44,6 +46,7 @@ public class FormationUnit01 extends UnitLogic {
             case "IDLE":
                 cyclePhase += 0.03;
                 updateTelemetry(ns, "cell_temperature", 25 + Math.sin(cyclePhase) * 0.3);
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":
@@ -67,7 +70,7 @@ public class FormationUnit01 extends UnitLogic {
                 updateTelemetry(ns, "capacity_ah", capacity);
                 updateTelemetry(ns, "internal_resistance", resistance);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.2);
+                applyOperatingEnergy(ns);
 
                 boolean voltageOk = voltage >= 3.55 && voltage <= 3.65;
                 boolean currentOk = current >= 1.4 && current <= 1.6;

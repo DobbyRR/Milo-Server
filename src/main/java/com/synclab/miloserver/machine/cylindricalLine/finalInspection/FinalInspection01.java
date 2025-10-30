@@ -14,6 +14,8 @@ public class FinalInspection01 extends UnitLogic {
         this.equipmentId = "FI-01";
         this.processId = "FinalInspection";
         this.defaultPpm = 50;
+        setUnitsPerCycle(1);
+        configureEnergyProfile(0.2, 0.03, 0.9, 0.2);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -41,6 +43,7 @@ public class FinalInspection01 extends UnitLogic {
             case "IDLE":
                 updateTelemetry(ns, "vision_score", 85 + Math.random() * 5);
                 updateTelemetry(ns, "electrical_resistance", 5 + Math.random());
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":
@@ -61,7 +64,7 @@ public class FinalInspection01 extends UnitLogic {
                 updateTelemetry(ns, "function_passed", functionPass);
                 updateTelemetry(ns, "lot_verified", "LOT-" + (1000 + (int) (Math.random() * 9000)));
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.08);
+                applyOperatingEnergy(ns);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();

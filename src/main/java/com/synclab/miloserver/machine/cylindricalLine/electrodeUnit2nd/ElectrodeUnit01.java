@@ -15,6 +15,7 @@ public class ElectrodeUnit01 extends UnitLogic {
         this.machineNo = 2;
         this.equipmentId = "EU-01";
         this.processId = "Electrode";
+        configureEnergyProfile(0.4, 0.08, 2.2, 0.4);
         this.defaultPpm = 90;
 
         setupCommonTelemetry(ns);
@@ -73,7 +74,7 @@ public class ElectrodeUnit01 extends UnitLogic {
                 updateTelemetry(ns, "calender_pressure", pressure);
                 updateTelemetry(ns, "slitting_accuracy", slitting);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.12);
+                applyOperatingEnergy(ns);
 
                 boolean viscosityOk = viscosity >= 1200 && viscosity <= 1300;
                 boolean tempOk = slurryTemp >= 30 && slurryTemp <= 35;

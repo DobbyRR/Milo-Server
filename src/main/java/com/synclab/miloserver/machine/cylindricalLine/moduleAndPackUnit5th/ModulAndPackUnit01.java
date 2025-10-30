@@ -16,6 +16,8 @@ public class ModulAndPackUnit01 extends UnitLogic {
         this.equipmentId = "MP-01";
         this.processId = "ModulePack";
         this.defaultPpm = 60;
+        setUnitsPerCycle(1);
+        configureEnergyProfile(0.3, 0.05, 1.8, 0.3);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -44,6 +46,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 alignmentPhase += 0.04;
                 updateTelemetry(ns, "cell_alignment", 0.5 + Math.abs(Math.sin(alignmentPhase)) * 0.1);
                 updateTelemetry(ns, "bms_status", "IDLE");
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":
@@ -67,7 +70,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 updateTelemetry(ns, "weld_resistance", weld);
                 updateTelemetry(ns, "torque_result", torque);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
-                updateTelemetry(ns, "energy_consumption", energyConsumption += 0.18);
+                applyOperatingEnergy(ns);
 
                 boolean alignmentOk = alignment <= 0.12;
                 boolean resistanceOk = resistance >= 3.3 && resistance <= 3.7;

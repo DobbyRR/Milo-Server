@@ -17,6 +17,7 @@ public class TrayCleaner02 extends UnitLogic {
         this.processId = "DryClean";
         setUnitsPerCycle(36);
         setDefaultPpm(66); // 1.83 trays per minute * 36 units
+        configureEnergyProfile(0.12, 0.02, 0.55, 0.1);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -85,13 +86,13 @@ public class TrayCleaner02 extends UnitLogic {
                 updateTelemetry(ns,"transfer_time", 5.0 + Math.random());
                 updateTelemetry(ns,"cycle_time", cycleTime = 7.0);
                 updateTelemetry(ns,"uptime", uptime += 1.0);
-                updateTelemetry(ns,"energy_consumption", energyConsumption += 0.05);
                 updateTelemetry(ns,"OEE", oee = 95.5);
 
                 boolean cleanOk = cleanliness >= 78;
                 boolean staticOk = staticLevel <= 0.06;
                 boolean pressureOk = airPressure >= 5.4 && airPressure <= 6.6;
 
+                applyOperatingEnergy(ns);
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
                 if (producedUnits > 0) {
