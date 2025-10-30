@@ -55,16 +55,32 @@ public class CellCleaner01 extends UnitLogic {
 
             case "EXECUTE":
                 moisturePhase += 0.2;
-                updateTelemetry(ns, "ultrasonic_power", 120 + (Math.random() - 0.5) * 5);
-                updateTelemetry(ns, "residual_moisture", Math.max(0.5, 5 + Math.sin(moisturePhase) * 2));
-                updateTelemetry(ns, "surface_defects", Math.random() > 0.95 ? 1 : 0);
-                updateTelemetry(ns, "drying_temperature", 55 + (Math.random() - 0.5) * 2);
-                updateTelemetry(ns, "cleanliness_score", 90 + (Math.random() - 0.5) * 5);
+                double power = 120 + (Math.random() - 0.5) * 5;
+                double residualMoisture = Math.max(0.5, 5 + Math.sin(moisturePhase) * 2);
+                boolean defectDetected = Math.random() > 0.95;
+                double dryingTemp = 55 + (Math.random() - 0.5) * 2;
+                double cleanlinessScore = 90 + (Math.random() - 0.5) * 5;
+
+                updateTelemetry(ns, "ultrasonic_power", power);
+                updateTelemetry(ns, "residual_moisture", residualMoisture);
+                updateTelemetry(ns, "surface_defects", defectDetected ? 1 : 0);
+                updateTelemetry(ns, "drying_temperature", dryingTemp);
+                updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.1);
 
+                boolean powerOk = power >= 115 && power <= 125;
+                boolean moistureOk = residualMoisture <= 3.0;
+                boolean tempOk = dryingTemp >= 53 && dryingTemp <= 57;
+                boolean cleanlinessOk = cleanlinessScore >= 88;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.015 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean measurementOk = powerOk && moistureOk && tempOk && cleanlinessOk && !defectDetected;
+                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

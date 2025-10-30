@@ -55,16 +55,32 @@ public class ModulAndPackUnit01 extends UnitLogic {
 
             case "EXECUTE":
                 alignmentPhase += 0.18;
-                updateTelemetry(ns, "cell_alignment", 0.1 + Math.abs(Math.sin(alignmentPhase)) * 0.05);
-                updateTelemetry(ns, "module_resistance", 3.5 + (Math.random() - 0.5) * 0.2);
-                updateTelemetry(ns, "bms_status", Math.random() > 0.05 ? "OK" : "WARN");
-                updateTelemetry(ns, "weld_resistance", 0.8 + (Math.random() - 0.5) * 0.05);
-                updateTelemetry(ns, "torque_result", 5.5 + (Math.random() - 0.5) * 0.3);
+                double alignment = 0.1 + Math.abs(Math.sin(alignmentPhase)) * 0.05;
+                double resistance = 3.5 + (Math.random() - 0.5) * 0.2;
+                boolean bmsOk = Math.random() > 0.05;
+                double weld = 0.8 + (Math.random() - 0.5) * 0.05;
+                double torque = 5.5 + (Math.random() - 0.5) * 0.3;
+
+                updateTelemetry(ns, "cell_alignment", alignment);
+                updateTelemetry(ns, "module_resistance", resistance);
+                updateTelemetry(ns, "bms_status", bmsOk ? "OK" : "WARN");
+                updateTelemetry(ns, "weld_resistance", weld);
+                updateTelemetry(ns, "torque_result", torque);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.18);
 
+                boolean alignmentOk = alignment <= 0.12;
+                boolean resistanceOk = resistance >= 3.3 && resistance <= 3.7;
+                boolean weldOk = weld <= 0.85;
+                boolean torqueOk = torque >= 5.2 && torque <= 5.8;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.025 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean measurementOk = alignmentOk && resistanceOk && weldOk && torqueOk && bmsOk;
+                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

@@ -57,17 +57,30 @@ public class FormationUnit01 extends UnitLogic {
                 cyclePhase += 0.08;
                 double voltage = 3.6 + Math.sin(cyclePhase) * 0.05;
                 double current = 1.5 + Math.cos(cyclePhase) * 0.1;
+                double temperature = 28 + Math.sin(cyclePhase) * 1.5;
+                double resistance = 1.8 + (Math.random() - 0.5) * 0.05;
+
                 updateTelemetry(ns, "charge_voltage", voltage);
                 updateTelemetry(ns, "charge_current", current);
-                updateTelemetry(ns, "cell_temperature", 28 + Math.sin(cyclePhase) * 1.5);
+                updateTelemetry(ns, "cell_temperature", temperature);
                 capacity = Math.min(100.0, capacity + 0.25 + Math.random() * 0.05);
                 updateTelemetry(ns, "capacity_ah", capacity);
-                updateTelemetry(ns, "internal_resistance", 1.8 + (Math.random() - 0.5) * 0.05);
+                updateTelemetry(ns, "internal_resistance", resistance);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.2);
 
+                boolean voltageOk = voltage >= 3.55 && voltage <= 3.65;
+                boolean currentOk = current >= 1.4 && current <= 1.6;
+                boolean temperatureOk = temperature >= 27 && temperature <= 32;
+                boolean resistanceOk = resistance >= 1.7 && resistance <= 1.9;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.03 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean measurementOk = voltageOk && currentOk && temperatureOk && resistanceOk;
+                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

@@ -57,17 +57,36 @@ public class ElectrodeUnit01 extends UnitLogic {
 
             case "EXECUTE":
                 mixPhase += 0.2;
-                updateTelemetry(ns, "mix_viscosity", 1250 + Math.sin(mixPhase) * 60 + (Math.random() - 0.5) * 20);
-                updateTelemetry(ns, "slurry_temperature", 32 + (Math.random() - 0.5) * 1.5);
-                updateTelemetry(ns, "coating_thickness", 85 + (Math.random() - 0.5) * 1.5);
-                updateTelemetry(ns, "oven_temperature", 160 + (Math.random() - 0.5) * 3);
-                updateTelemetry(ns, "calender_pressure", 4.8 + (Math.random() - 0.5) * 0.1);
-                updateTelemetry(ns, "slitting_accuracy", 0.1 + Math.random() * 0.05);
+                double viscosity = 1250 + Math.sin(mixPhase) * 60 + (Math.random() - 0.5) * 20;
+                double slurryTemp = 32 + (Math.random() - 0.5) * 1.5;
+                double thickness = 85 + (Math.random() - 0.5) * 1.5;
+                double ovenTemp = 160 + (Math.random() - 0.5) * 3;
+                double pressure = 4.8 + (Math.random() - 0.5) * 0.1;
+                double slitting = 0.1 + Math.random() * 0.05;
+
+                updateTelemetry(ns, "mix_viscosity", viscosity);
+                updateTelemetry(ns, "slurry_temperature", slurryTemp);
+                updateTelemetry(ns, "coating_thickness", thickness);
+                updateTelemetry(ns, "oven_temperature", ovenTemp);
+                updateTelemetry(ns, "calender_pressure", pressure);
+                updateTelemetry(ns, "slitting_accuracy", slitting);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.12);
 
+                boolean viscosityOk = viscosity >= 1200 && viscosity <= 1300;
+                boolean tempOk = slurryTemp >= 30 && slurryTemp <= 35;
+                boolean thicknessOk = thickness >= 83 && thickness <= 87;
+                boolean ovenOk = ovenTemp >= 158 && ovenTemp <= 162;
+                boolean pressureOk = pressure >= 4.7 && pressure <= 4.9;
+                boolean slittingOk = slitting <= 0.15;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.03 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean measurementOk = viscosityOk && tempOk && thicknessOk && ovenOk && pressureOk && slittingOk;
+                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

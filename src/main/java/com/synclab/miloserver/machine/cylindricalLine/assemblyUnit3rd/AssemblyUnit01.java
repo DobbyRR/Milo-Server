@@ -55,16 +55,32 @@ public class AssemblyUnit01 extends UnitLogic {
 
             case "EXECUTE":
                 alignmentPhase += 0.2;
-                updateTelemetry(ns, "stack_alignment", 0.05 + Math.abs(Math.sin(alignmentPhase)) * 0.02);
-                updateTelemetry(ns, "winding_tension", 20 + (Math.random() - 0.5) * 0.5);
-                updateTelemetry(ns, "weld_quality", 95 + (Math.random() - 0.5) * 2);
-                updateTelemetry(ns, "leak_test_result", Math.random() > 0.02 ? "PASS" : "FAIL");
-                updateTelemetry(ns, "electrolyte_fill", 5.0 + (Math.random() - 0.5) * 0.2);
+                double alignment = 0.05 + Math.abs(Math.sin(alignmentPhase)) * 0.02;
+                double tension = 20 + (Math.random() - 0.5) * 0.5;
+                double weldQuality = 95 + (Math.random() - 0.5) * 2;
+                boolean leakPass = Math.random() > 0.02;
+                double fill = 5.0 + (Math.random() - 0.5) * 0.2;
+
+                updateTelemetry(ns, "stack_alignment", alignment);
+                updateTelemetry(ns, "winding_tension", tension);
+                updateTelemetry(ns, "weld_quality", weldQuality);
+                updateTelemetry(ns, "leak_test_result", leakPass ? "PASS" : "FAIL");
+                updateTelemetry(ns, "electrolyte_fill", fill);
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.15);
 
+                boolean alignmentOk = alignment <= 0.07;
+                boolean tensionOk = tension >= 19.5 && tension <= 20.5;
+                boolean weldOk = weldQuality >= 93;
+                boolean fillOk = fill >= 4.8 && fill <= 5.2;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.02 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean measurementOk = alignmentOk && tensionOk && weldOk && leakPass && fillOk;
+                    updateQualityCounts(ns, measurementOk ? producedDiff : 0, measurementOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

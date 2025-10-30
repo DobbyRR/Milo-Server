@@ -68,9 +68,13 @@ public class TrayCleaner02 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                updateTelemetry(ns,"surface_cleanliness", Math.min(100, Math.random() * 100));
-                updateTelemetry(ns,"static_level", Math.random() * 0.1);
-                updateTelemetry(ns,"air_pressure", 5 + Math.random() * 2);
+                double cleanliness = Math.min(100, Math.random() * 100);
+                double staticLevel = Math.random() * 0.1;
+                double airPressure = 5 + Math.random() * 2;
+
+                updateTelemetry(ns,"surface_cleanliness", cleanliness);
+                updateTelemetry(ns,"static_level", staticLevel);
+                updateTelemetry(ns,"air_pressure", airPressure);
                 updateTelemetry(ns,"tray_tag_valid", true);
                 updateTelemetry(ns,"occupied", true);
                 updateTelemetry(ns,"speed", 0.25 + Math.random() * 0.1);
@@ -80,8 +84,17 @@ public class TrayCleaner02 extends UnitLogic {
                 updateTelemetry(ns,"energy_consumption", energyConsumption += 0.05);
                 updateTelemetry(ns,"OEE", oee = 95.5);
 
+                boolean cleanOk = cleanliness >= 78;
+                boolean staticOk = staticLevel <= 0.06;
+                boolean pressureOk = airPressure >= 5.4 && airPressure <= 6.6;
+
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                updateQualityCounts(ns, 1, Math.random() < 0.04 ? 1 : 0);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean cycleOk = cleanOk && staticOk && pressureOk;
+                    updateQualityCounts(ns, cycleOk ? producedDiff : 0, cycleOk ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

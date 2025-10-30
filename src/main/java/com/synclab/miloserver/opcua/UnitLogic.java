@@ -133,15 +133,11 @@ public abstract class UnitLogic {
         }
     }
 
-    protected void updateQualityCounts(MultiMachineNameSpace ns, int okIncrement, int ngIncrement) {
-        if (okIncrement != 0) {
-            okCount += okIncrement;
-            updateTelemetry(ns, "order_ok_qty", okCount);
-        }
-        if (ngIncrement != 0) {
-            ngCount += ngIncrement;
-            updateTelemetry(ns, "order_ng_qty", ngCount);
-        }
+    protected void updateQualityCounts(MultiMachineNameSpace ns, int okValue, int ngValue) {
+        this.okCount = okValue;
+        this.ngCount = ngValue;
+        updateTelemetry(ns, "order_ok_qty", okCount);
+        updateTelemetry(ns, "order_ng_qty", ngCount);
     }
 
     protected void updateMesAckPending(MultiMachineNameSpace ns, boolean pending) {
@@ -283,9 +279,12 @@ public abstract class UnitLogic {
         this.ppm = effectivePpm;
         this.producedQuantity = 0;
         this.productionAccumulator = 0.0;
+        this.okCount = 0;
+        this.ngCount = 0;
         updateTelemetry(ns, "order_no", orderNo);
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, 0);
+        updateQualityCounts(ns, 0, 0);
         updateTelemetry(ns, "PPM", ppm);
         updateOrderStatus(ns, "PREPARING");
         updateMesAckPending(ns, false);
@@ -343,6 +342,7 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "order_no", orderNo);
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, producedQuantity);
+        updateQualityCounts(ns, 0, 0);
         updateOrderStatus(ns, "IDLE");
         updateMesAckPending(ns, false);
         if (lineController != null) {

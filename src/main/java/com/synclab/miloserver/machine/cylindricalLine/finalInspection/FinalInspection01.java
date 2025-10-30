@@ -51,19 +51,27 @@ public class FinalInspection01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                updateTelemetry(ns, "vision_score", 95 + (Math.random() - 0.5) * 2);
-                updateTelemetry(ns, "electrical_resistance", 3.0 + (Math.random() - 0.5) * 0.5);
-                updateTelemetry(ns, "safety_passed", Math.random() > 0.01);
-                updateTelemetry(ns, "function_passed", Math.random() > 0.02);
+                double vision = 95 + (Math.random() - 0.5) * 2;
+                double electrical = 3.0 + (Math.random() - 0.5) * 0.5;
+                boolean safetyPass = Math.random() > 0.01;
+                boolean functionPass = Math.random() > 0.02;
+                updateTelemetry(ns, "vision_score", vision);
+                updateTelemetry(ns, "electrical_resistance", electrical);
+                updateTelemetry(ns, "safety_passed", safetyPass);
+                updateTelemetry(ns, "function_passed", functionPass);
                 updateTelemetry(ns, "lot_verified", "LOT-" + (1000 + (int) (Math.random() * 9000)));
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.08);
 
+                int beforeQty = producedQuantity;
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
-                boolean pass = Math.random() > 0.05;
-                updateTelemetry(ns, "safety_passed", pass);
-                updateTelemetry(ns, "function_passed", pass);
-                updateQualityCounts(ns, pass ? 1 : 0, pass ? 0 : 1);
+                int producedDiff = producedQuantity - beforeQty;
+                if (producedDiff > 0) {
+                    boolean visionOk = vision >= 93;
+                    boolean electricalOk = electrical >= 2.5 && electrical <= 3.5;
+                    boolean pass = visionOk && electricalOk && safetyPass && functionPass;
+                    updateQualityCounts(ns, pass ? producedDiff : 0, pass ? 0 : producedDiff);
+                }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");
