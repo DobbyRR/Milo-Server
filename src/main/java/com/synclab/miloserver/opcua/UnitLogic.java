@@ -115,11 +115,15 @@ public abstract class UnitLogic {
         Object previous = node.getValue().getValue().getValue();
         boolean changed = !Objects.equals(previous, value);
 
-        ns.updateValue(node, value);
-
-        if (changed && "air_pressure".equals(key)) {
-            System.out.printf("[Telemetry] %s.%s -> %s%n", name, key, value);
+        if (changed) {
+            System.out.printf("[Telemetry-Update] %s.%s: %s -> %s%n",
+                    name,
+                    key,
+                    String.valueOf(previous),
+                    String.valueOf(value));
         }
+
+        ns.updateValue(node, value);
     }
 
     protected void updateOrderStatus(MultiMachineNameSpace ns, String status) {

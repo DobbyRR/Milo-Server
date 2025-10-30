@@ -167,6 +167,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         getNodeContext().getNodeManager().addNode(node);
         parent.addReference(new Reference(parent.getNodeId(), Identifiers.Organizes, node.getNodeId().expanded(), true));
         publishInitial(node);
+        System.out.printf("[Telemetry-Init] %s = %s%n", name, String.valueOf(initialValue));
         return node;
 
 //        getNodeContext().getNodeManager().addNode(node);
