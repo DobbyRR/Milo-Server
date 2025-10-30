@@ -377,7 +377,7 @@ public abstract class UnitLogic {
     }
 
     public synchronized void acknowledgeOrderCompletion(MultiMachineNameSpace ns) {
-        if (!awaitingMesAck) {
+        if (!awaitingMesAck && !"COMPLETE".equalsIgnoreCase(state)) {
             return;
         }
         updateMesAckPending(ns, false);
