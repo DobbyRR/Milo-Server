@@ -42,7 +42,7 @@ public class MiloServerConfig {
         MultiMachineNameSpace namespace = new MultiMachineNameSpace(server, "urn:synclab:milo:namespace");
         server.getAddressSpaceManager().register(namespace);
 
-        // 1️⃣ 서버 기동
+        // 서버 기동
         server.startup().get();
         System.out.println("[DEBUG] After startup(), checking ObjectsFolder...");
 

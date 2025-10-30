@@ -1,5 +1,11 @@
 package com.synclab.miloserver.opcua;
 
+import com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd.AssemblyUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th.CellCleaner01;
+import com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd.ElectrodeUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection01;
+import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModulAndPackUnit01;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 import org.eclipse.milo.opcua.sdk.core.AccessLevel;
@@ -10,10 +16,14 @@ import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
 import org.eclipse.milo.opcua.sdk.server.api.DataItem;
 import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespaceWithLifecycle;
 import org.eclipse.milo.opcua.sdk.server.api.MonitoredItem;
+import org.eclipse.milo.opcua.sdk.server.nodes.AttributeContext;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
+import org.eclipse.milo.opcua.sdk.server.nodes.delegates.AttributeDelegate;
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel;
+import org.eclipse.milo.opcua.stack.core.AttributeId;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
+import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
@@ -27,6 +37,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
@@ -37,6 +49,8 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
     private final AtomicInteger nodeCounter = new AtomicInteger(1);
     private final UaFolderNode rootFolder;
     private final List<UnitLogic> machines = new ArrayList<>();
+    private final List<ProductionLineController> lineControllers = new ArrayList<>();
+    private final Map<String, UaVariableNode> commandNodes = new ConcurrentHashMap<>();
 
     private static NodeId dataTypeIdFor(Object v) {
         if (v instanceof Boolean) return Identifiers.Boolean;
@@ -70,16 +84,14 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
     }
 
+    public synchronized int nextNodeId() {
+        return nodeCounter.getAndIncrement();
+    }
+
     public void publishInitial(UaVariableNode node) {
         DataValue v = node.getValue();
         node.setValue(new DataValue(v.getValue(), StatusCode.GOOD, DateTime.now(), DateTime.now()));
     }
-
-    private void publish(UaVariableNode node, Object value) {
-        DataValue dv = new DataValue(new Variant(value), StatusCode.GOOD, DateTime.now(), DateTime.now());
-        node.setValue(dv);
-    }
-
 
     /** 루트 폴더 반환 */
 //    public UaFolderNode getRootFolder() {
@@ -104,24 +116,37 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         // 예시 변수 노드(정방향으로 부모=Machines에 달아줌)
 //        addVariableNode(rootFolder, "Factory.Status", "RUNNING");
 
-        UaFolderNode tc01 = addMachineFolder("TrayCleaner01");
-        UaFolderNode tc02 = addMachineFolder("TrayCleaner02");
+        UaFolderNode line01Folder = addFolder(rootFolder, "Line01");
+        ProductionLineController line01Controller = new ProductionLineController(this, "Line01", line01Folder);
+        lineControllers.add(line01Controller);
 
-        // 설비 UnitLogic 인스턴스 생성 및 등록
-        machines.add(new TrayCleaner01("TrayCleaner01", tc01, this));
-        machines.add(new TrayCleaner02("TrayCleaner02", tc02, this));
+        UnitLogic trayCleaner01 = new TrayCleaner01("TrayCleaner01", addFolder(line01Folder, "TrayCleaner01"), this);
+        UnitLogic trayCleaner02 = new TrayCleaner02("TrayCleaner02", addFolder(line01Folder, "TrayCleaner02"), this);
+        UnitLogic electrodeUnit01 = new ElectrodeUnit01("ElectrodeUnit01", addFolder(line01Folder, "ElectrodeUnit01"), this);
+        UnitLogic assemblyUnit01 = new AssemblyUnit01("AssemblyUnit01", addFolder(line01Folder, "AssemblyUnit01"), this);
+        UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(line01Folder, "FormationUnit01"), this);
+        UnitLogic modulePackUnit01 = new ModulAndPackUnit01("ModuleAndPackUnit01", addFolder(line01Folder, "ModuleAndPackUnit01"), this);
+        UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(line01Folder, "CellCleaner01"), this);
+        UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(line01Folder, "FinalInspection01"), this);
+
+        registerMachine(trayCleaner01, line01Controller);
+        registerMachine(trayCleaner02, line01Controller);
+        registerMachine(electrodeUnit01, line01Controller);
+        registerMachine(assemblyUnit01, line01Controller);
+        registerMachine(formationUnit01, line01Controller);
+        registerMachine(modulePackUnit01, line01Controller);
+        registerMachine(cellCleaner01, line01Controller);
+        registerMachine(finalInspection01, line01Controller);
 
         System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");
         System.out.println("[DEBUG] namespace index: " + getNamespaceIndex());
 
-        autoStartMachines();
-
     }
 
     /** 변수 노드 생성 */
     public UaVariableNode addVariableNode(UaFolderNode parent, String name, Object initialValue) {
-        NodeId nodeId = new NodeId(getNamespaceIndex(), nodeCounter.getAndIncrement());
+        NodeId nodeId = new NodeId(getNamespaceIndex(), nextNodeId());
 
         UaVariableNode node = UaVariableNode.builder(getNodeContext())
                 .setNodeId(nodeId)
@@ -159,15 +184,15 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
     }
 
-    public UaFolderNode addMachineFolder(String machineName) {
+    public UaFolderNode addFolder(UaFolderNode parent, String folderName) {
         UaFolderNode folder = new UaFolderNode(
                 getNodeContext(),
-                new NodeId(getNamespaceIndex(), machineName),                 // ns=NsIdx; s=TrayCleaner02
-                new QualifiedName(getNamespaceIndex(), machineName),
-                LocalizedText.english(machineName)
+                new NodeId(getNamespaceIndex(), nextNodeId()),
+                new QualifiedName(getNamespaceIndex(), folderName),
+                LocalizedText.english(folderName)
         );
         getNodeContext().getNodeManager().addNode(folder);
-        rootFolder.addReference(new Reference(rootFolder.getNodeId(), Identifiers.Organizes, folder.getNodeId().expanded(), true));
+        parent.addReference(new Reference(parent.getNodeId(), Identifiers.Organizes, folder.getNodeId().expanded(), true));
         return folder;
     }
 
@@ -176,18 +201,51 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         node.setValue(new DataValue(new Variant(newValue), StatusCode.GOOD, DateTime.now(), DateTime.now()));
     }
 
-    private void autoStartMachines() {
-        machines.forEach(machine -> {
-            try {
-                machine.onCommand(this, "START");
-            } catch (Exception e) {
-                System.err.printf("[WARN] Failed to auto-start machine %s: %s%n", machine.getName(), e.getMessage());
-            }
-        });
-    }
-
     public List<UnitLogic> getMachines() {
         return machines;
+    }
+
+    private void registerMachine(UnitLogic machine, ProductionLineController lineController) {
+        machines.add(machine);
+        registerCommandNode(machine.machineFolder, machine);
+        if (lineController != null) {
+            lineController.registerMachine(machine);
+        }
+    }
+
+    private void registerCommandNode(UaFolderNode folder, UnitLogic machine) {
+        String browseName = ".command";
+        UaVariableNode commandNode = UaVariableNode.builder(getNodeContext())
+                .setNodeId(new NodeId(getNamespaceIndex(), nextNodeId()))
+                .setBrowseName(new QualifiedName(getNamespaceIndex(), machine.getName() + browseName))
+                .setDisplayName(LocalizedText.english(machine.getName() + " Command"))
+                .setTypeDefinition(Identifiers.BaseDataVariableType)
+                .setValueRank(ValueRanks.Scalar)
+                .setDataType(Identifiers.String)
+                .setMinimumSamplingInterval(0.0)
+                .setAccessLevel(AccessLevel.toValue(EnumSet.of(AccessLevel.CurrentRead, AccessLevel.CurrentWrite)))
+                .setUserAccessLevel(AccessLevel.toValue(EnumSet.of(AccessLevel.CurrentRead, AccessLevel.CurrentWrite)))
+                .setValue(new DataValue(new Variant(""), StatusCode.GOOD, DateTime.now(), DateTime.now()))
+                .build();
+
+        commandNode.setAttributeDelegate(new AttributeDelegate() {
+            @Override
+            public void setAttribute(AttributeContext context, org.eclipse.milo.opcua.sdk.core.nodes.Node node, AttributeId attributeId, DataValue value) throws UaException {
+                AttributeDelegate.super.setAttribute(context, node, attributeId, value);
+
+                if (attributeId == AttributeId.Value) {
+                    Variant raw = value.getValue();
+                    String command = raw != null && raw.getValue() != null ? raw.getValue().toString().trim() : "";
+                    if (!command.isEmpty()) {
+                        machine.onCommand(MultiMachineNameSpace.this, command);
+                    }
+                }
+            }
+        });
+
+        getNodeContext().getNodeManager().addNode(commandNode);
+        folder.addReference(new Reference(folder.getNodeId(), Identifiers.Organizes, commandNode.getNodeId().expanded(), true));
+        commandNodes.put(machine.getName(), commandNode);
     }
 
     /* ---------- MonitoredItemServices 구현 ---------- */

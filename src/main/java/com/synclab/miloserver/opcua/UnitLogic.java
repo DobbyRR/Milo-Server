@@ -30,6 +30,13 @@ public abstract class UnitLogic {
     protected String orderNo = "";
     protected String trayId = "";
 
+    protected int targetQuantity = 0;
+    protected int producedQuantity = 0;
+    protected double productionAccumulator = 0.0;
+    protected boolean awaitingMesAck = false;
+    protected boolean orderActive = false;
+    protected String orderStatus = "IDLE";
+
     protected double uptime = 0.0;
     protected double downtime = 0.0;
     protected double availability = 100.0;
@@ -52,6 +59,8 @@ public abstract class UnitLogic {
             });
     private ScheduledFuture<?> simulationTask;
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
+    protected long stateStartTime = System.currentTimeMillis();
+    private ProductionLineController lineController;
 
     protected UnitLogic(String name, UaFolderNode machineFolder) {
         this.name = name;
@@ -86,6 +95,10 @@ public abstract class UnitLogic {
         telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, ".last_maintenance", lastMaintenance.toString()));
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder,".tray_id", trayId));
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder,".order_no", orderNo));
+        telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder,".order_target_qty", targetQuantity));
+        telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder,".order_produced_qty", producedQuantity));
+        telemetryNodes.put("order_status", ns.addVariableNode(machineFolder,".order_status", orderStatus));
+        telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder,".mes_ack_pending", awaitingMesAck));
     }
 
     /** Telemetry 값 업데이트 및 구독자 알림 */
@@ -103,7 +116,85 @@ public abstract class UnitLogic {
         }
     }
 
+    protected void updateOrderStatus(MultiMachineNameSpace ns, String status) {
+        this.orderStatus = status;
+        updateTelemetry(ns, "order_status", status);
+    }
+
+    protected void updateProducedQuantity(MultiMachineNameSpace ns, int newQty) {
+        producedQuantity = newQty;
+        updateTelemetry(ns, "order_produced_qty", producedQuantity);
+        if (lineController != null) {
+            lineController.onMachineProduced(this, producedQuantity, targetQuantity);
+        }
+    }
+
+    protected void updateMesAckPending(MultiMachineNameSpace ns, boolean pending) {
+        awaitingMesAck = pending;
+        updateTelemetry(ns, "mes_ack_pending", awaitingMesAck);
+        if (lineController != null) {
+            lineController.onMachineAckPendingChanged(this, awaitingMesAck);
+        }
+    }
+
+    protected boolean handleCommonCommand(MultiMachineNameSpace ns, String command) {
+        if (command == null || command.isBlank()) {
+            return false;
+        }
+
+        String[] tokens = command.split(":");
+        String action = tokens[0].trim().toUpperCase();
+
+        switch (action) {
+            case "START":
+                if (tokens.length < 4) {
+                    System.err.printf("[%s] START command requires orderNo:targetQty:ppm but got '%s'%n", name, command);
+                    return true;
+                }
+                try {
+                    String orderId = tokens[1];
+                    int targetQty = Integer.parseInt(tokens[2]);
+                    int targetPpm = Integer.parseInt(tokens[3]);
+                    handleStartCommand(ns, orderId, targetQty, targetPpm);
+                } catch (NumberFormatException ex) {
+                    System.err.printf("[%s] Invalid START parameters '%s': %s%n", name, command, ex.getMessage());
+                }
+                return true;
+
+            case "ACK":
+                acknowledgeOrderCompletion(ns);
+                return true;
+
+            case "RESET":
+                if (!awaitingMesAck) {
+                    resetOrderState(ns);
+                    changeState(ns, "IDLE");
+                }
+                return true;
+
+            case "STOP":
+                requestSimulationStop();
+                changeState(ns, "STOPPING");
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    protected void handleStartCommand(MultiMachineNameSpace ns, String orderId, int targetQty, int targetPpm) {
+        startOrder(ns, orderId, targetQty, targetPpm);
+    }
+
     public String getName() { return name; }
+
+    public void setLineController(ProductionLineController lineController) {
+        this.lineController = lineController;
+    }
+
+    public ProductionLineController getLineController() {
+        return lineController;
+    }
 
     protected synchronized void startSimulation(MultiMachineNameSpace ns) {
         stopRequested.set(false);
@@ -115,6 +206,17 @@ public abstract class UnitLogic {
                     e.printStackTrace();
                 }
             }, 0, 1, TimeUnit.SECONDS);
+        }
+    }
+
+    protected void changeState(MultiMachineNameSpace ns, String newState) {
+        this.state = newState;
+        this.stateStartTime = System.currentTimeMillis();
+        updateTelemetry(ns, "state", newState);
+        handleStateTransition(newState);
+        System.out.printf("[%s] → %s%n", name, newState);
+        if (lineController != null) {
+            lineController.onMachineStateChanged(this, newState);
         }
     }
 
@@ -139,5 +241,86 @@ public abstract class UnitLogic {
     public void shutdownSimulator() {
         stopSimulation();
         simulationExecutor.shutdownNow();
+    }
+
+    protected boolean timeInState(long ms) {
+        return System.currentTimeMillis() - stateStartTime > ms;
+    }
+
+    public synchronized void startOrder(MultiMachineNameSpace ns, String newOrderNo, int newTargetQuantity, int newPpm) {
+        if (newTargetQuantity <= 0) {
+            throw new IllegalArgumentException("targetQuantity must be > 0");
+        }
+        this.orderActive = true;
+        this.orderNo = newOrderNo;
+        this.targetQuantity = newTargetQuantity;
+        this.ppm = newPpm;
+        this.producedQuantity = 0;
+        this.productionAccumulator = 0.0;
+        updateTelemetry(ns, "order_no", orderNo);
+        updateTelemetry(ns, "order_target_qty", targetQuantity);
+        updateProducedQuantity(ns, 0);
+        updateTelemetry(ns, "PPM", ppm);
+        updateOrderStatus(ns, "PREPARING");
+        updateMesAckPending(ns, false);
+
+        if (!"STARTING".equals(state) && !"EXECUTE".equals(state)) {
+            changeState(ns, "STARTING");
+        }
+        startSimulation(ns);
+    }
+
+    protected boolean accumulateProduction(MultiMachineNameSpace ns, double secondsElapsed) {
+        if (!orderActive || targetQuantity <= 0 || ppm <= 0) {
+            return false;
+        }
+        productionAccumulator += (ppm / 60.0) * secondsElapsed;
+        int producedIncrement = (int) productionAccumulator;
+        if (producedIncrement > 0) {
+            productionAccumulator -= producedIncrement;
+            int updated = producedQuantity + producedIncrement;
+            if (updated > targetQuantity) {
+                updated = targetQuantity;
+                productionAccumulator = 0.0;
+            }
+            if (updated != producedQuantity) {
+                updateProducedQuantity(ns, updated);
+            }
+        }
+        return producedQuantity >= targetQuantity;
+    }
+
+    protected void onOrderCompleted(MultiMachineNameSpace ns) {
+        if (!awaitingMesAck) {
+            updateOrderStatus(ns, "WAITING_ACK");
+            updateMesAckPending(ns, true);
+            changeState(ns, "COMPLETE");
+        }
+    }
+
+    public synchronized void acknowledgeOrderCompletion(MultiMachineNameSpace ns) {
+        if (!awaitingMesAck) {
+            return;
+        }
+        updateMesAckPending(ns, false);
+        updateOrderStatus(ns, "ACKED");
+        this.orderActive = false;
+        changeState(ns, "RESETTING");
+    }
+
+    protected void resetOrderState(MultiMachineNameSpace ns) {
+        this.orderNo = "";
+        this.targetQuantity = 0;
+        this.producedQuantity = 0;
+        this.productionAccumulator = 0.0;
+        this.orderActive = false;
+        updateTelemetry(ns, "order_no", orderNo);
+        updateTelemetry(ns, "order_target_qty", targetQuantity);
+        updateProducedQuantity(ns, producedQuantity);
+        updateOrderStatus(ns, "IDLE");
+        updateMesAckPending(ns, false);
+        if (lineController != null) {
+            lineController.onMachineReset(this);
+        }
     }
 }

@@ -4,17 +4,9 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class TrayCleaner01 extends UnitLogic {
 
-    private long stateStartTime = System.currentTimeMillis();
-    private int cycleCount = 0;
     private double idlePressurePhase = 0.0;
-
-    // 트레이 클리너 개별 항목
-    private final Map<String, Object> localTelemetry = new HashMap<>();
 
     public TrayCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
@@ -50,21 +42,8 @@ public class TrayCleaner01 extends UnitLogic {
 
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
-        switch (command.toUpperCase()) {
-            case "START":
-                if (state.equals("IDLE")) {
-                    startSimulation(ns);
-                    changeState(ns, "STARTING");
-                }
-                break;
-            case "RESET":
-                startSimulation(ns);
-                changeState(ns, "RESETTING");
-                break;
-            case "STOP":
-                requestSimulationStop();
-                changeState(ns, "STOPPING");
-                break;
+        if (!handleCommonCommand(ns, command)) {
+            System.err.printf("[TrayCleaner01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -81,7 +60,10 @@ public class TrayCleaner01 extends UnitLogic {
                 break;
 
             case "STARTING":
-                if (timeInState(2000)) changeState(ns, "EXECUTE");
+                if (timeInState(2000)) {
+                    updateOrderStatus(ns, "RUNNING");
+                    changeState(ns, "EXECUTE");
+                }
                 break;
 
             case "EXECUTE":
@@ -95,24 +77,32 @@ public class TrayCleaner01 extends UnitLogic {
                 updateTelemetry(ns,"cycle_time", cycleTime = 7.0);
                 updateTelemetry(ns,"uptime", uptime += 1.0);
                 updateTelemetry(ns,"energy_consumption", energyConsumption += 0.05);
-                updateTelemetry(ns,"PPM", ppm = 60);
                 updateTelemetry(ns,"OEE", oee = 95.5);
-                if (timeInState(5000)) changeState(ns, "COMPLETING");
+
+                boolean reachedTarget = accumulateProduction(ns, 1.0);
+                if (reachedTarget) {
+                    updateOrderStatus(ns, "COMPLETING");
+                    changeState(ns, "COMPLETING");
+                }
                 break;
 
             case "COMPLETING":
-                cycleCount++;
                 updateTelemetry(ns,"occupied", false);
                 updateTelemetry(ns,"tray_tag_valid", false);
-                if (timeInState(2000)) changeState(ns, "COMPLETE");
+                if (timeInState(2000)) {
+                    onOrderCompleted(ns);
+                }
                 break;
 
             case "COMPLETE":
-                if (timeInState(1000)) changeState(ns, "RESETTING");
+                // MES 승인 대기
                 break;
 
             case "RESETTING":
-                if (timeInState(2000)) changeState(ns, "IDLE");
+                if (!awaitingMesAck && timeInState(1000)) {
+                    resetOrderState(ns);
+                    changeState(ns, "IDLE");
+                }
                 break;
 
             case "STOPPING":
@@ -121,17 +111,5 @@ public class TrayCleaner01 extends UnitLogic {
                 if (timeInState(1000)) changeState(ns, "IDLE");
                 break;
         }
-    }
-
-    private void changeState(MultiMachineNameSpace ns, String newState) {
-        this.state = newState;
-        this.stateStartTime = System.currentTimeMillis();
-        updateTelemetry(ns,"state", newState);
-        handleStateTransition(newState);
-        System.out.printf("[%s] → %s%n", name, newState);
-    }
-
-    private boolean timeInState(long ms) {
-        return System.currentTimeMillis() - stateStartTime > ms;
     }
 }
