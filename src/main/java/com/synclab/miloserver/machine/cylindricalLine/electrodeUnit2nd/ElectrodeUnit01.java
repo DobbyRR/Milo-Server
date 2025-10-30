@@ -46,6 +46,8 @@ public class ElectrodeUnit01 extends UnitLogic {
                 double viscosityIdle = 1100 + Math.sin(mixPhase) * 40 + (Math.random() - 0.5) * 10;
                 updateTelemetry(ns, "mix_viscosity", viscosityIdle);
                 updateTelemetry(ns, "slurry_temperature", 25 + (Math.random() - 0.5) * 0.5);
+                updateTelemetry(ns, "oven_temperature", 155 + (Math.random() - 0.5));
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":

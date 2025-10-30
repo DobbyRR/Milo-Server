@@ -44,6 +44,7 @@ public class CellCleaner01 extends UnitLogic {
                 moisturePhase += 0.05;
                 updateTelemetry(ns, "residual_moisture", 8 + Math.abs(Math.sin(moisturePhase)) * 2);
                 updateTelemetry(ns, "drying_temperature", 40 + (Math.random() - 0.5) * 1.5);
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":

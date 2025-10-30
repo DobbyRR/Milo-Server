@@ -58,7 +58,10 @@ public class TrayCleaner01 extends UnitLogic {
                     idlePressurePhase -= Math.PI * 2;
                 }
                 double idlePressure = 4.8 + Math.sin(idlePressurePhase) * 0.25 + (Math.random() - 0.5) * 0.05;
+                double idleStatic = 0.02 + Math.abs(Math.sin(idlePressurePhase / 2)) * 0.02;
                 updateTelemetry(ns, "air_pressure", idlePressure);
+                updateTelemetry(ns, "static_level", idleStatic);
+                applyIdleDrift(ns);
                 break;
 
             case "STARTING":

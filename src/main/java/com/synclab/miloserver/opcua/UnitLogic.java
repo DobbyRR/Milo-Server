@@ -54,6 +54,8 @@ public abstract class UnitLogic {
     protected String alarmCode = "";
     protected String alarmLevel = "";
     protected OffsetDateTime lastMaintenance = OffsetDateTime.now();
+    protected double idleEnergyDrift = 0.01;
+    protected double idleDriftAccumulator = 0.0;
 
     protected final Map<String, UaVariableNode> telemetryNodes = new HashMap<>();
     private final ScheduledExecutorService simulationExecutor =
@@ -286,6 +288,15 @@ public abstract class UnitLogic {
 
     protected boolean timeInState(long ms) {
         return System.currentTimeMillis() - stateStartTime > ms;
+    }
+
+    protected void applyIdleDrift(MultiMachineNameSpace ns) {
+        idleDriftAccumulator += idleEnergyDrift;
+        if (idleDriftAccumulator >= 1.0) {
+            energyConsumption += idleDriftAccumulator;
+            idleDriftAccumulator = 0.0;
+            updateTelemetry(ns, "energy_consumption", energyConsumption);
+        }
     }
 
     public synchronized void startOrder(MultiMachineNameSpace ns, String newOrderNo, int newTargetQuantity, int newPpm) {
