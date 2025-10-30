@@ -167,11 +167,8 @@ public class ProductionLineController {
     private synchronized void acknowledge() {
         if (!awaitingAck) {
             System.err.printf("[%s] No machines awaiting MES ACK.%n", lineName);
-            return;
         }
-        machines.stream()
-                .filter(machine -> machine.awaitingMesAck)
-                .forEach(machine -> machine.acknowledgeOrderCompletion(namespace));
+        machines.forEach(machine -> machine.acknowledgeOrderCompletion(namespace));
         this.orderStatus = "ACKED";
         this.awaitingAck = false;
         this.orderActive = false;
