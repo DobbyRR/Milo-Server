@@ -15,6 +15,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
         this.machineNo = 5;
         this.equipmentId = "MP-01";
         this.processId = "ModulePack";
+        this.defaultPpm = 60;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -63,6 +64,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.18);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.025 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

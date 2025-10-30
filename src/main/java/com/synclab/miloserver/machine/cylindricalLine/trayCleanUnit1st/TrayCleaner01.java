@@ -15,6 +15,7 @@ public class TrayCleaner01 extends UnitLogic {
         this.machineNo = 1;
         this.equipmentId = "TC-01";
         this.processId = "DryClean";
+        this.defaultPpm = 120;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -80,6 +81,7 @@ public class TrayCleaner01 extends UnitLogic {
                 updateTelemetry(ns,"OEE", oee = 95.5);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.05 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

@@ -15,6 +15,7 @@ public class ElectrodeUnit01 extends UnitLogic {
         this.machineNo = 2;
         this.equipmentId = "EU-01";
         this.processId = "Electrode";
+        this.defaultPpm = 90;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -66,6 +67,7 @@ public class ElectrodeUnit01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.12);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.03 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

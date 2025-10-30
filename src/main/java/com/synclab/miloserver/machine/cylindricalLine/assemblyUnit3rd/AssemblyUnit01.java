@@ -15,6 +15,7 @@ public class AssemblyUnit01 extends UnitLogic {
         this.machineNo = 3;
         this.equipmentId = "AU-01";
         this.processId = "Assembly";
+        this.defaultPpm = 80;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -63,6 +64,7 @@ public class AssemblyUnit01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.15);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.02 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

@@ -32,6 +32,8 @@ public abstract class UnitLogic {
 
     protected int targetQuantity = 0;
     protected int producedQuantity = 0;
+    protected int okCount = 0;
+    protected int ngCount = 0;
     protected double productionAccumulator = 0.0;
     protected boolean awaitingMesAck = false;
     protected boolean orderActive = false;
@@ -46,6 +48,7 @@ public abstract class UnitLogic {
     protected double cycleTime = 0.0;
     protected double energyConsumption = 0.0;
     protected int ppm = 0;
+    protected int defaultPpm = 60;
     protected String alarmCode = "";
     protected String alarmLevel = "";
     protected OffsetDateTime lastMaintenance = OffsetDateTime.now();
@@ -96,6 +99,8 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
         telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder, name + ".order_target_qty", targetQuantity));
         telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
+        telemetryNodes.put("order_ok_qty", ns.addVariableNode(machineFolder, name + ".order_ok_qty", okCount));
+        telemetryNodes.put("order_ng_qty", ns.addVariableNode(machineFolder, name + ".order_ng_qty", ngCount));
         telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
     }
@@ -125,6 +130,17 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "order_produced_qty", producedQuantity);
         if (lineController != null) {
             lineController.onMachineProduced(this, producedQuantity, targetQuantity);
+        }
+    }
+
+    protected void updateQualityCounts(MultiMachineNameSpace ns, int okIncrement, int ngIncrement) {
+        if (okIncrement != 0) {
+            okCount += okIncrement;
+            updateTelemetry(ns, "order_ok_qty", okCount);
+        }
+        if (ngIncrement != 0) {
+            ngCount += ngIncrement;
+            updateTelemetry(ns, "order_ng_qty", ngCount);
         }
     }
 
@@ -183,6 +199,16 @@ public abstract class UnitLogic {
 
     protected void handleStartCommand(MultiMachineNameSpace ns, String orderId, int targetQty, int targetPpm) {
         startOrder(ns, orderId, targetQty, targetPpm);
+    }
+
+    public void setDefaultPpm(int defaultPpm) {
+        if (defaultPpm > 0) {
+            this.defaultPpm = defaultPpm;
+        }
+    }
+
+    public int getDefaultPpm() {
+        return defaultPpm;
     }
 
     public String getName() { return name; }
@@ -250,10 +276,11 @@ public abstract class UnitLogic {
         if (newTargetQuantity <= 0) {
             throw new IllegalArgumentException("targetQuantity must be > 0");
         }
+        int effectivePpm = newPpm > 0 ? newPpm : defaultPpm;
         this.orderActive = true;
         this.orderNo = newOrderNo;
         this.targetQuantity = newTargetQuantity;
-        this.ppm = newPpm;
+        this.ppm = effectivePpm;
         this.producedQuantity = 0;
         this.productionAccumulator = 0.0;
         updateTelemetry(ns, "order_no", orderNo);

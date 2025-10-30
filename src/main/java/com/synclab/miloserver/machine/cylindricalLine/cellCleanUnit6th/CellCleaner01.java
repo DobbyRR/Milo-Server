@@ -15,6 +15,7 @@ public class CellCleaner01 extends UnitLogic {
         this.machineNo = 6;
         this.equipmentId = "CC-01";
         this.processId = "CellCleaning";
+        this.defaultPpm = 55;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -63,6 +64,7 @@ public class CellCleaner01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.1);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.015 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

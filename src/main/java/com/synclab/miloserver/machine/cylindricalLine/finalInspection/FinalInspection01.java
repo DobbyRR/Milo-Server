@@ -13,6 +13,7 @@ public class FinalInspection01 extends UnitLogic {
         this.machineNo = 7;
         this.equipmentId = "FI-01";
         this.processId = "FinalInspection";
+        this.defaultPpm = 50;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -59,6 +60,10 @@ public class FinalInspection01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.08);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                boolean pass = Math.random() > 0.05;
+                updateTelemetry(ns, "safety_passed", pass);
+                updateTelemetry(ns, "function_passed", pass);
+                updateQualityCounts(ns, pass ? 1 : 0, pass ? 0 : 1);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");

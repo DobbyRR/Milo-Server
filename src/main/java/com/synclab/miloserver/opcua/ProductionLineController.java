@@ -23,6 +23,8 @@ public class ProductionLineController {
     private final List<UnitLogic> machines = new ArrayList<>();
     private final Map<UnitLogic, Integer> machineProduction = new HashMap<>();
     private final Map<UnitLogic, String> machineStates = new HashMap<>();
+    private final Map<UnitLogic, Boolean> machineStarted = new HashMap<>();
+    private final Map<UnitLogic, Boolean> machineCompleted = new HashMap<>();
 
     private final Map<String, UaVariableNode> nodes = new HashMap<>();
 
@@ -32,6 +34,9 @@ public class ProductionLineController {
     private int linePpm = 0;
     private boolean awaitingAck = false;
     private boolean orderActive = false;
+    private String currentOrderNo = "";
+    private int currentOrderTargetQty = 0;
+    private int currentOrderPpm = 0;
 
     public ProductionLineController(MultiMachineNameSpace namespace, String lineName, UaFolderNode lineFolder) {
         this.namespace = namespace;
@@ -93,6 +98,8 @@ public class ProductionLineController {
         machines.add(machine);
         machineProduction.put(machine, 0);
         machineStates.put(machine, machine.state);
+        machineStarted.put(machine, false);
+        machineCompleted.put(machine, false);
         machine.setLineController(this);
     }
 
@@ -132,22 +139,29 @@ public class ProductionLineController {
             return;
         }
 
+        int effectiveLinePpm = ppm > 0
+                ? ppm
+                : (!machines.isEmpty() ? machines.get(0).getDefaultPpm() : 0);
+
         this.orderActive = true;
         this.awaitingAck = false;
         this.orderNo = orderId;
         this.targetQuantity = targetQty;
-        this.linePpm = ppm;
+        this.linePpm = effectiveLinePpm;
         this.orderStatus = "RUNNING";
-        updateLineTelemetry();
+        this.currentOrderNo = orderId;
+        this.currentOrderTargetQty = targetQty;
+        this.currentOrderPpm = ppm;
 
-        machines.forEach(machine -> {
-            try {
-                machine.startOrder(namespace, orderId, targetQty, ppm);
-            } catch (Exception ex) {
-                System.err.printf("[%s] Failed to start machine %s: %s%n",
-                        lineName, machine.getName(), ex.getMessage());
-            }
-        });
+        machineProduction.replaceAll((m, v) -> 0);
+        machineStates.replaceAll((m, v) -> "IDLE");
+        machineStarted.replaceAll((m, v) -> false);
+        machineCompleted.replaceAll((m, v) -> false);
+
+        updateLineTelemetry();
+        updateNode("order_produced_qty", 0);
+
+        startMachineAtIndex(0);
     }
 
     private synchronized void acknowledge() {
@@ -155,15 +169,19 @@ public class ProductionLineController {
             System.err.printf("[%s] No machines awaiting MES ACK.%n", lineName);
             return;
         }
-        machines.forEach(machine -> machine.acknowledgeOrderCompletion(namespace));
+        machines.stream()
+                .filter(machine -> machine.awaitingMesAck)
+                .forEach(machine -> machine.acknowledgeOrderCompletion(namespace));
         this.orderStatus = "ACKED";
         this.awaitingAck = false;
+        this.orderActive = false;
         updateLineTelemetry();
     }
 
     private synchronized void stopLine() {
         machines.forEach(UnitLogic::requestSimulationStop);
         this.orderStatus = "STOPPING";
+        this.orderActive = false;
         updateLineTelemetry();
     }
 
@@ -184,20 +202,33 @@ public class ProductionLineController {
 
     public synchronized void onMachineProduced(UnitLogic machine, int producedQty, int targetQty) {
         machineProduction.put(machine, producedQty);
-        int minProduced = machineProduction.values().stream().mapToInt(Integer::intValue).min().orElse(0);
-        updateNode("order_produced_qty", minProduced);
-        if (orderActive && minProduced >= targetQuantity && targetQuantity > 0) {
-            this.awaitingAck = true;
-            this.orderStatus = "WAITING_ACK";
-            updateLineTelemetry();
+        maybeStartNextMachine(machine, producedQty);
+
+        UnitLogic lastMachine = machines.isEmpty() ? null : machines.get(machines.size() - 1);
+        if (lastMachine != null) {
+            int finishedOutput = machineProduction.getOrDefault(lastMachine, 0);
+            updateNode("order_produced_qty", finishedOutput);
+            if (orderActive && targetQuantity > 0 && finishedOutput >= targetQuantity) {
+                this.awaitingAck = true;
+                this.orderStatus = "WAITING_ACK";
+                updateLineTelemetry();
+            }
+        }
+
+        if (targetQty > 0 && producedQty >= targetQty) {
+            machineCompleted.put(machine, true);
         }
     }
 
     public synchronized void onMachineAckPendingChanged(UnitLogic machine, boolean pending) {
         if (pending) {
-            this.awaitingAck = true;
-            this.orderStatus = "WAITING_ACK";
-            updateLineTelemetry();
+            if (isLastMachine(machine)) {
+                this.awaitingAck = true;
+                this.orderStatus = "WAITING_ACK";
+                updateLineTelemetry();
+            } else {
+                machine.acknowledgeOrderCompletion(namespace);
+            }
         } else if (machines.stream().noneMatch(m -> m.awaitingMesAck)) {
             this.awaitingAck = false;
             updateLineTelemetry();
@@ -213,9 +244,51 @@ public class ProductionLineController {
 
     public synchronized void onMachineReset(UnitLogic machine) {
         machineProduction.put(machine, 0);
+        machineStarted.put(machine, false);
+        machineCompleted.put(machine, false);
         if (machines.stream().allMatch(m -> machineProduction.get(m) == 0)) {
             updateNode("order_produced_qty", 0);
         }
+    }
+
+    private void startMachineAtIndex(int index) {
+        if (index < 0 || index >= machines.size()) {
+            return;
+        }
+        UnitLogic machine = machines.get(index);
+        if (Boolean.TRUE.equals(machineStarted.get(machine))) {
+            return;
+        }
+        machineStarted.put(machine, true);
+        machineCompleted.put(machine, false);
+        machineProduction.put(machine, 0);
+        try {
+            machine.startOrder(namespace, currentOrderNo, currentOrderTargetQty, currentOrderPpm);
+        } catch (Exception ex) {
+            System.err.printf("[%s] Failed to start machine %s: %s%n",
+                    lineName, machine.getName(), ex.getMessage());
+        }
+    }
+
+    private void maybeStartNextMachine(UnitLogic machine, int producedQty) {
+        if (!orderActive || producedQty <= 0) {
+            return;
+        }
+        int index = machines.indexOf(machine);
+        if (index == -1) {
+            return;
+        }
+        int nextIndex = index + 1;
+        if (nextIndex < machines.size()) {
+            UnitLogic next = machines.get(nextIndex);
+            if (!Boolean.TRUE.equals(machineStarted.get(next))) {
+                startMachineAtIndex(nextIndex);
+            }
+        }
+    }
+
+    private boolean isLastMachine(UnitLogic machine) {
+        return !machines.isEmpty() && machines.get(machines.size() - 1) == machine;
     }
 
     private void resetLineState() {
@@ -224,8 +297,13 @@ public class ProductionLineController {
         this.orderNo = "";
         this.targetQuantity = 0;
         this.linePpm = 0;
+        this.currentOrderNo = "";
+        this.currentOrderTargetQty = 0;
+        this.currentOrderPpm = 0;
         this.orderStatus = "IDLE";
         machineProduction.replaceAll((m, v) -> 0);
+        machineStarted.replaceAll((m, v) -> false);
+        machineCompleted.replaceAll((m, v) -> false);
         updateLineTelemetry();
         updateNode("order_produced_qty", 0);
     }

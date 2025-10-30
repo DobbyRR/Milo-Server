@@ -16,6 +16,7 @@ public class FormationUnit01 extends UnitLogic {
         this.machineNo = 4;
         this.equipmentId = "FU-01";
         this.processId = "Formation";
+        this.defaultPpm = 70;
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -66,6 +67,7 @@ public class FormationUnit01 extends UnitLogic {
                 updateTelemetry(ns, "energy_consumption", energyConsumption += 0.2);
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
+                updateQualityCounts(ns, 1, Math.random() < 0.03 ? 1 : 0);
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");
                     changeState(ns, "COMPLETING");
