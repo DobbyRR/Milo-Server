@@ -109,15 +109,14 @@ public class ProductionLineController {
 
         switch (action) {
             case "START":
-                if (tokens.length < 4) {
-                    System.err.printf("[%s] START requires lineCommand START:<order>:<qty>:<ppm>%n", lineName);
+                if (tokens.length < 3) {
+                    System.err.printf("[%s] START requires lineCommand START:<order>:<qty>%n", lineName);
                     return;
                 }
                 try {
                     String orderId = tokens[1];
                     int targetQty = Integer.parseInt(tokens[2]);
-                    int ppm = Integer.parseInt(tokens[3]);
-                    startOrder(orderId, targetQty, ppm);
+                    startOrder(orderId, targetQty);
                 } catch (NumberFormatException ex) {
                     System.err.printf("[%s] Invalid START parameters '%s': %s%n", lineName, command, ex.getMessage());
                 }
@@ -133,25 +132,21 @@ public class ProductionLineController {
         }
     }
 
-    private synchronized void startOrder(String orderId, int targetQty, int ppm) {
+    private synchronized void startOrder(String orderId, int targetQty) {
         if (orderActive || awaitingAck) {
             System.err.printf("[%s] Line busy; cannot start new order.%n", lineName);
             return;
         }
 
-        int effectiveLinePpm = ppm > 0
-                ? ppm
-                : (!machines.isEmpty() ? machines.get(0).getDefaultPpm() : 0);
-
         this.orderActive = true;
         this.awaitingAck = false;
         this.orderNo = orderId;
         this.targetQuantity = targetQty;
-        this.linePpm = effectiveLinePpm;
+        this.linePpm = 0;
         this.orderStatus = "RUNNING";
         this.currentOrderNo = orderId;
         this.currentOrderTargetQty = targetQty;
-        this.currentOrderPpm = ppm;
+        this.currentOrderPpm = 0;
 
         machineProduction.replaceAll((m, v) -> 0);
         machineStates.replaceAll((m, v) -> "IDLE");
@@ -260,7 +255,8 @@ public class ProductionLineController {
         machineCompleted.put(machine, false);
         machineProduction.put(machine, 0);
         try {
-            machine.startOrder(namespace, currentOrderNo, currentOrderTargetQty, currentOrderPpm);
+            int machinePpm = machine.getDefaultPpm();
+            machine.startOrder(namespace, currentOrderNo, currentOrderTargetQty, machinePpm);
         } catch (Exception ex) {
             System.err.printf("[%s] Failed to start machine %s: %s%n",
                     lineName, machine.getName(), ex.getMessage());

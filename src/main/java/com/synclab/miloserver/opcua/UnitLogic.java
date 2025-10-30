@@ -168,14 +168,17 @@ public abstract class UnitLogic {
 
         switch (action) {
             case "START":
-                if (tokens.length < 4) {
-                    System.err.printf("[%s] START command requires orderNo:targetQty:ppm but got '%s'%n", name, command);
+                if (tokens.length < 3) {
+                    System.err.printf("[%s] START command requires at least orderNo:targetQty but got '%s'%n", name, command);
                     return true;
                 }
                 try {
                     String orderId = tokens[1];
                     int targetQty = Integer.parseInt(tokens[2]);
-                    int targetPpm = Integer.parseInt(tokens[3]);
+                    int targetPpm = 0;
+                    if (tokens.length >= 4 && !tokens[3].isBlank()) {
+                        targetPpm = Integer.parseInt(tokens[3]);
+                    }
                     handleStartCommand(ns, orderId, targetQty, targetPpm);
                 } catch (NumberFormatException ex) {
                     System.err.printf("[%s] Invalid START parameters '%s': %s%n", name, command, ex.getMessage());
