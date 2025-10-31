@@ -14,7 +14,7 @@ public class FinalInspection01 extends UnitLogic {
         this.equipmentId = "FI-01";
         this.processId = "FinalInspection";
         this.defaultPpm = 50;
-        setUnitsPerCycle(36);
+        setUnitsPerCycle(1);
         configureEnergyProfile(0.3, 0.04, 3.5, 0.5);
 
         setupCommonTelemetry(ns);

@@ -16,7 +16,7 @@ public class CellCleaner02 extends UnitLogic {
         this.equipmentId = "CC-02";
         this.processId = "CellCleaning";
         this.defaultPpm = 56;
-        setUnitsPerCycle(36);
+        setUnitsPerCycle(1);
         configureEnergyProfile(0.52, 0.07, 5.2, 0.65);
 
         setupCommonTelemetry(ns);

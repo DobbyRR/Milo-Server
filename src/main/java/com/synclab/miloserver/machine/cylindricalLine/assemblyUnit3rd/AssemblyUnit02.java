@@ -16,7 +16,7 @@ public class AssemblyUnit02 extends UnitLogic {
         this.equipmentId = "AU-02";
         this.processId = "Assembly";
         this.defaultPpm = 82;
-        setUnitsPerCycle(36);
+        setUnitsPerCycle(1);
         configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
 
         setupCommonTelemetry(ns);

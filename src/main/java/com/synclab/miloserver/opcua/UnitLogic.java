@@ -237,6 +237,25 @@ public abstract class UnitLogic {
         return lastProducedIncrement;
     }
 
+    public void extendOrderTarget(MultiMachineNameSpace ns, int additionalQty) {
+        if (additionalQty <= 0) {
+            return;
+        }
+        targetQuantity += additionalQty;
+        updateTelemetry(ns, "order_target_qty", targetQuantity);
+        updateOrderStatus(ns, "RUNNING");
+        if (awaitingMesAck) {
+            updateMesAckPending(ns, false);
+        }
+        if (!orderActive) {
+            orderActive = true;
+        }
+        startSimulation(ns);
+        if (!"EXECUTE".equals(state) && !"STARTING".equals(state)) {
+            changeState(ns, "EXECUTE");
+        }
+    }
+
     public int getMachineNo() {
         return machineNo;
     }

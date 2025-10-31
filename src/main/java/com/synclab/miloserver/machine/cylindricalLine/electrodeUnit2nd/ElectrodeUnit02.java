@@ -17,7 +17,7 @@ public class ElectrodeUnit02 extends UnitLogic {
         this.processId = "Electrode";
         configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
         this.defaultPpm = 92;
-        setUnitsPerCycle(36);
+        setUnitsPerCycle(1);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -61,12 +61,21 @@ public class ElectrodeUnit02 extends UnitLogic {
 
             case "EXECUTE":
                 mixPhase += 0.18;
-                double viscosity = 1240 + Math.sin(mixPhase) * 55 + (Math.random() - 0.5) * 18;
-                double slurryTemp = 31.5 + (Math.random() - 0.5) * 1.4;
-                double thickness = 84.5 + (Math.random() - 0.5) * 1.4;
-                double ovenTemp = 159 + (Math.random() - 0.5) * 3;
-                double pressure = 4.7 + (Math.random() - 0.5) * 0.1;
-                double slitting = 0.11 + Math.random() * 0.05;
+                double viscosity = 1245 + Math.sin(mixPhase) * 40 + (Math.random() - 0.5) * 15;
+                double slurryTemp = 31.8 + (Math.random() - 0.5) * 1.1;
+                double thickness = 84.7 + (Math.random() - 0.5) * 1.1;
+                double ovenTemp = 159.5 + (Math.random() - 0.5) * 2.3;
+                double pressure = 4.72 + (Math.random() - 0.5) * 0.07;
+                double slitting = 0.11 + (Math.random() - 0.5) * 0.03;
+                boolean pass = Math.random() >= 0.01;
+                if (!pass) {
+                    viscosity = 1180 + (Math.random() - 0.5) * 35;
+                    slurryTemp = 28.5 + (Math.random() - 0.5) * 3;
+                    thickness = 81.5 + (Math.random() - 0.5) * 3;
+                    ovenTemp = 151 + (Math.random() - 0.5) * 6;
+                    pressure = 4.2 + (Math.random() - 0.5) * 0.25;
+                    slitting = 0.19 + Math.random() * 0.05;
+                }
 
                 updateTelemetry(ns, "mix_viscosity", viscosity);
                 updateTelemetry(ns, "slurry_temperature", slurryTemp);
@@ -87,7 +96,7 @@ public class ElectrodeUnit02 extends UnitLogic {
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
                 if (producedUnits > 0) {
-                    boolean measurementOk = viscosityOk && tempOk && thicknessOk && ovenOk && pressureOk && slittingOk;
+                    boolean measurementOk = pass && viscosityOk && tempOk && thicknessOk && ovenOk && pressureOk && slittingOk;
                     int ngUnits = measurementOk ? 0 : Math.min(producedUnits, Math.max(1, producedUnits / 12));
                     int okUnits = Math.max(0, producedUnits - ngUnits);
                     updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);

@@ -16,7 +16,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
         this.equipmentId = "MP-01";
         this.processId = "ModulePack";
         this.defaultPpm = 60;
-        setUnitsPerCycle(36);
+        setUnitsPerCycle(1);
         configureEnergyProfile(0.8, 0.1, 8.0, 1.0);
 
         setupCommonTelemetry(ns);
