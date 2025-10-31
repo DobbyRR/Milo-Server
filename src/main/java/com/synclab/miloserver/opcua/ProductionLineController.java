@@ -29,6 +29,7 @@ public class ProductionLineController {
     private final Map<UnitLogic, Boolean> machineCompleted = new HashMap<>();
     private final Map<UnitLogic, Integer> machineOkCounts = new HashMap<>();
     private final Map<UnitLogic, Integer> machineNgCounts = new HashMap<>();
+    private final Map<UnitLogic, Integer> machineOkCarryover = new HashMap<>();
     private final Map<UnitLogic, Integer> machineTargets = new HashMap<>();
     private final Map<Integer, List<UnitLogic>> stageMachines = new HashMap<>();
     private final List<Integer> stageOrder = new ArrayList<>();
@@ -114,6 +115,7 @@ public class ProductionLineController {
         machineOkCounts.put(machine, 0);
         machineNgCounts.put(machine, 0);
         machineTargets.put(machine, 0);
+        machineOkCarryover.put(machine, 0);
         int stageNo = machine.getMachineNo();
         if (!stageMachines.containsKey(stageNo)) {
             stageMachines.put(stageNo, new ArrayList<>());
@@ -175,6 +177,7 @@ public class ProductionLineController {
         machineOkCounts.replaceAll((m, v) -> 0);
         machineNgCounts.replaceAll((m, v) -> 0);
         machineTargets.replaceAll((m, v) -> 0);
+        machineOkCarryover.replaceAll((m, v) -> 0);
         stageOutputs.clear();
         stageStarted.clear();
         completedStages.clear();
@@ -242,6 +245,7 @@ public class ProductionLineController {
             int okSum = getStageOkTotal(stageNo);
             updateNode("order_produced_qty", okSum);
         }
+        maybeStartDownstreamStage(stageNo);
     }
 
     public synchronized void onMachineAckPendingChanged(UnitLogic machine, boolean pending) {
@@ -314,6 +318,12 @@ public class ProductionLineController {
                 machineCompleted.put(machine, true);
                 continue;
             }
+            int carried = machineOkCarryover.getOrDefault(machine, 0);
+            int currentOk = machineOkCounts.getOrDefault(machine, 0);
+            if (currentOk > 0) {
+                machineOkCarryover.put(machine, carried + currentOk);
+            }
+            machineOkCounts.put(machine, 0);
             machineStarted.put(machine, true);
             machineCompleted.put(machine, false);
             try {
@@ -403,8 +413,32 @@ public class ProductionLineController {
             return 0;
         }
         return stageList.stream()
-                .mapToInt(machine -> machineOkCounts.getOrDefault(machine, 0))
+                .mapToInt(this::getMachineStageOk)
                 .sum();
+    }
+
+    private int getMachineStageOk(UnitLogic machine) {
+        return machineOkCarryover.getOrDefault(machine, 0)
+                + machineOkCounts.getOrDefault(machine, 0);
+    }
+
+    private void maybeStartDownstreamStage(int stageNo) {
+        int index = stageOrder.indexOf(stageNo);
+        if (index == -1 || index >= stageOrder.size() - 1) {
+            return;
+        }
+        int nextStage = stageOrder.get(index + 1);
+        if (Boolean.TRUE.equals(stageStarted.get(nextStage))) {
+            return;
+        }
+        int availableOk = getStageOkTotal(stageNo);
+        if (availableOk > 0) {
+            int requested = stageRequirements.getOrDefault(nextStage, currentOrderTargetQty);
+            if (requested <= 0) {
+                requested = currentOrderTargetQty;
+            }
+            startStage(nextStage, requested);
+        }
     }
 
     private boolean isLastStage(int stageNo) {
@@ -431,6 +465,7 @@ public class ProductionLineController {
         machineOkCounts.replaceAll((m, v) -> 0);
         machineNgCounts.replaceAll((m, v) -> 0);
         machineTargets.replaceAll((m, v) -> 0);
+        machineOkCarryover.replaceAll((m, v) -> 0);
         stageStarted.clear();
         stageOutputs.clear();
         completedStages.clear();
