@@ -18,33 +18,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 트레이(36개 단위) 기반 파이프라인 제어 로직.
- * 각 스테이지는 큐에 쌓인 트레이를 설비별로 순차 배정하며,
- * 설비는 트레이 완료 시 OK 수량만을 다음 스테이지로 전달한다.
+ * 트레이/시리얼 기반의 병렬 파이프라인 컨트롤러.
  */
 public class ProductionLineController {
 
-    private static final int TRAY_SIZE = 36;
+    private static final int TRAY_CAPACITY = 36;
+    private static final int STAGE_TRAY_CLEAN = 1;
+    private static final int STAGE_ELECTRODE = 2;
 
     private final MultiMachineNameSpace namespace;
     private final String lineName;
     private final UaFolderNode lineFolder;
 
-    /** 전체 설비 목록 및 기본 상태 추적 */
-    private final List<UnitLogic> machines = new ArrayList<>();
+    private final Map<Integer, StageState> stages = new HashMap<>();
+    private final List<Integer> stageOrder = new ArrayList<>();
+    private final Map<UnitLogic, MachineAssignment> machineAssignments = new HashMap<>();
+
     private final Map<UnitLogic, Integer> machineProduction = new HashMap<>();
     private final Map<UnitLogic, Integer> machineOkCounts = new HashMap<>();
     private final Map<UnitLogic, Integer> machineNgCounts = new HashMap<>();
     private final Map<UnitLogic, String> machineStates = new HashMap<>();
 
-    /** 스테이지별 설비 및 트레이 큐 */
-    private final Map<Integer, List<UnitLogic>> stageMachines = new HashMap<>();
-    private final List<Integer> stageOrder = new ArrayList<>();
-    private final Map<Integer, Deque<Tray>> stageQueues = new HashMap<>();
-    private final Map<UnitLogic, MachineAssignment> machineAssignments = new HashMap<>();
-    private final Map<UnitLogic, Boolean> machineInitialized = new HashMap<>();
-
-    /** 라인 텔레메트리 */
     private final Map<String, UaVariableNode> nodes = new HashMap<>();
 
     private String orderStatus = "IDLE";
@@ -57,33 +51,10 @@ public class ProductionLineController {
     private int currentOrderTargetQty = 0;
     private int currentOrderPpm = 0;
 
-    /** 최종 OK 누적 및 트레이 ID */
     private int finalOkTotal = 0;
-    private int trayCounter = 0;
-
-    private static final class Tray {
-        final int id;
-        final int plannedQty;
-
-        Tray(int id, int plannedQty) {
-            this.id = id;
-            this.plannedQty = plannedQty;
-        }
-    }
-
-    private static final class MachineAssignment {
-        final Tray tray;
-        final int startProduced;
-        final int startOk;
-        final int startNg;
-
-        MachineAssignment(Tray tray, int startProduced, int startOk, int startNg) {
-            this.tray = tray;
-            this.startProduced = startProduced;
-            this.startOk = startOk;
-            this.startNg = startNg;
-        }
-    }
+    private long trayIdCounter = 0L;
+    private long serialCounter = 1L;
+    private String serialPrefix = "CC-A";
 
     public ProductionLineController(MultiMachineNameSpace namespace, String lineName, UaFolderNode lineFolder) {
         this.namespace = namespace;
@@ -132,18 +103,17 @@ public class ProductionLineController {
     }
 
     void registerMachine(UnitLogic machine) {
-        machines.add(machine);
+        StageState state = stages.computeIfAbsent(machine.getMachineNo(), StageState::new);
+        state.machines.add(machine);
+        if (!stageOrder.contains(state.stageNo)) {
+            stageOrder.add(state.stageNo);
+            stageOrder.sort(Integer::compareTo);
+        }
         machineProduction.put(machine, 0);
         machineOkCounts.put(machine, 0);
         machineNgCounts.put(machine, 0);
         machineStates.put(machine, machine.state);
-
-        int stageNo = machine.getMachineNo();
-        stageMachines.computeIfAbsent(stageNo, k -> {
-            stageOrder.add(stageNo);
-            return new ArrayList<>();
-        }).add(machine);
-
+        machineAssignments.remove(machine);
         machine.setLineController(this);
     }
 
@@ -153,13 +123,16 @@ public class ProductionLineController {
         switch (action) {
             case "START":
                 if (tokens.length < 3) {
-                    System.err.printf("[%s] START requires START:<order>:<qty>%n", lineName);
+                    System.err.printf("[%s] START requires START:<order>:<qty>[:<itemPrefix>]\n", lineName);
                     return;
                 }
                 try {
-                    startOrder(tokens[1], Integer.parseInt(tokens[2]));
+                    String orderId = tokens[1];
+                    int targetQty = Integer.parseInt(tokens[2]);
+                    String itemPrefix = tokens.length >= 4 ? tokens[3] : serialPrefix;
+                    startOrder(orderId, targetQty, itemPrefix);
                 } catch (NumberFormatException ex) {
-                    System.err.printf("[%s] Invalid START parameters '%s': %s%n", lineName, command, ex.getMessage());
+                    System.err.printf("[%s] Invalid START parameters '%s': %s\n", lineName, command, ex.getMessage());
                 }
                 break;
             case "ACK":
@@ -173,7 +146,7 @@ public class ProductionLineController {
         }
     }
 
-    private synchronized void startOrder(String orderId, int targetQty) {
+    private synchronized void startOrder(String orderId, int targetQty, String itemPrefix) {
         if (orderActive || awaitingAck) {
             System.err.printf("[%s] Line busy; cannot start new order.%n", lineName);
             return;
@@ -182,143 +155,108 @@ public class ProductionLineController {
         this.awaitingAck = false;
         this.orderNo = orderId;
         this.targetQuantity = targetQty;
-        this.linePpm = 0;
-        this.orderStatus = "RUNNING";
+        this.serialPrefix = itemPrefix != null && !itemPrefix.isBlank() ? itemPrefix : this.serialPrefix;
+        this.finalOkTotal = 0;
         this.currentOrderNo = orderId;
         this.currentOrderTargetQty = targetQty;
         this.currentOrderPpm = 0;
-        this.finalOkTotal = 0;
-        this.trayCounter = 0;
+        this.trayIdCounter = 0;
 
         machineAssignments.clear();
         machineProduction.replaceAll((m, v) -> 0);
         machineOkCounts.replaceAll((m, v) -> 0);
         machineNgCounts.replaceAll((m, v) -> 0);
         machineStates.replaceAll((m, v) -> "IDLE");
-        stageQueues.clear();
-        stageOrder.sort(Integer::compareTo);
-        stageOrder.forEach(stage -> stageQueues.put(stage, new ArrayDeque<>()));
+        stages.values().forEach(StageState::clearQueue);
 
         updateLineTelemetry();
         updateNode("order_produced_qty", 0);
 
-        if (!stageOrder.isEmpty()) {
-            int firstStage = stageOrder.get(0);
-            enqueueInitialTrays(firstStage, targetQty);
-            dispatchStage(firstStage);
+        StageState firstStage = stages.get(STAGE_TRAY_CLEAN);
+        if (firstStage == null) {
+            System.err.printf("[%s] No TrayClean stage registered.%n", lineName);
+            return;
         }
+        int traysNeeded = Math.max(1, (int) Math.ceil((double) targetQty / TRAY_CAPACITY));
+        for (int i = 0; i < traysNeeded; i++) {
+            firstStage.queue.addLast(new Tray(nextTrayId(), TRAY_CAPACITY));
+        }
+        dispatchStage(STAGE_TRAY_CLEAN);
+        ensureUpstreamSupply();
     }
 
-    private void enqueueInitialTrays(int stageNo, int totalQty) {
-        int trays = Math.max(1, (int) Math.ceil((double) totalQty / TRAY_SIZE));
-        for (int i = 0; i < trays; i++) {
-            enqueueTray(stageNo, TRAY_SIZE);
+    private synchronized void acknowledge() {
+        if (!awaitingAck) {
+            System.err.printf("[%s] No pending ACK.%n", lineName);
+            return;
         }
+        for (UnitLogic machine : machines()) {
+            machine.endContinuousOrder();
+            machine.acknowledgeOrderCompletion(namespace);
+            machine.resetOrderState(namespace);
+        }
+        awaitingAck = false;
+        orderActive = false;
+        orderStatus = "ACKED";
+        updateLineTelemetry();
     }
 
-    private void enqueueTray(int stageNo, int qty) {
-        if (qty <= 0) return;
-        Deque<Tray> queue = stageQueues.computeIfAbsent(stageNo, k -> new ArrayDeque<>());
-        trayCounter++;
-        queue.addLast(new Tray(trayCounter, qty));
+    private synchronized void stopLine() {
+        machines().forEach(UnitLogic::requestSimulationStop);
+        machineAssignments.clear();
+        stages.values().forEach(StageState::clearQueue);
+        orderStatus = "STOPPING";
+        orderActive = false;
+        awaitingAck = false;
+        updateLineTelemetry();
     }
 
     public synchronized void onMachineProduced(UnitLogic machine, int producedQty, int targetQty) {
         machineProduction.put(machine, producedQty);
-        MachineAssignment assignment = machineAssignments.get(machine);
-        if (assignment == null) return;
-
-        int producedForTray = producedQty - assignment.startProduced;
-        if (producedForTray >= assignment.tray.plannedQty) {
-            completeTray(machine);
-        }
+        checkTrayCompletion(machine);
     }
 
     public synchronized void onMachineQualityChanged(UnitLogic machine, int okTotal, int ngTotal) {
         machineOkCounts.put(machine, okTotal);
         machineNgCounts.put(machine, ngTotal);
-        MachineAssignment assignment = machineAssignments.get(machine);
-        if (assignment == null) return;
-        int trayOk = Math.max(0, okTotal - assignment.startOk);
-        if (trayOk >= assignment.tray.plannedQty) {
-            completeTray(machine);
-        }
+        checkTrayCompletion(machine);
     }
 
     public synchronized void onMachineAckPendingChanged(UnitLogic machine, boolean pending) {
-        if (pending) {
-            if (isLastMachine(machine) && finalOkTotal >= targetQuantity) {
-                awaitingAck = true;
-                orderStatus = "WAITING_ACK";
-                updateLineTelemetry();
-            } else {
-                machine.acknowledgeOrderCompletion(namespace);
-            }
-        } else if (machines.stream().noneMatch(m -> m.awaitingMesAck)) {
-            awaitingAck = false;
-            updateLineTelemetry();
-            dispatchStage(machine.getMachineNo());
-        }
+        machineStates.put(machine, pending ? "WAIT_ACK" : machine.state);
     }
 
     public synchronized void onMachineStateChanged(UnitLogic machine, String newState) {
         machineStates.put(machine, newState);
-        if (!orderActive && machines.stream().allMatch(m -> "IDLE".equalsIgnoreCase(machineStates.get(m)))) {
-            resetLineState();
-            return;
-        }
-        if ("IDLE".equalsIgnoreCase(newState) && orderActive) {
-            dispatchStage(machine.getMachineNo());
+        if (!orderActive) return;
+        if ("IDLE".equalsIgnoreCase(newState)) {
+            MachineAssignment assignment = machineAssignments.get(machine);
+            if (assignment != null) {
+                completeTray(machine);
+            }
+            StageState state = stages.get(machine.getMachineNo());
+            if (state != null) {
+                dispatchStage(state.stageNo);
+            }
         }
     }
 
     public synchronized void onMachineReset(UnitLogic machine) {
         machineAssignments.remove(machine);
-        if (!orderActive) return;
-        dispatchStage(machine.getMachineNo());
+        machineProduction.put(machine, 0);
+        machineOkCounts.put(machine, 0);
+        machineNgCounts.put(machine, 0);
+        machineStates.put(machine, machine.state);
     }
 
-    private void dispatchStage(int stageNo) {
-        Deque<Tray> queue = stageQueues.get(stageNo);
-        if (queue == null || queue.isEmpty()) return;
-
-        List<UnitLogic> stageList = stageMachines.get(stageNo);
-        if (stageList == null || stageList.isEmpty()) return;
-
-        for (UnitLogic machine : stageList) {
-            if (queue.isEmpty()) break;
-            if (machineAssignments.containsKey(machine)) continue;
-            if (machine.awaitingMesAck) continue;
-            if (!"IDLE".equalsIgnoreCase(machineStates.getOrDefault(machine, "IDLE"))) continue;
-
-            Tray tray = queue.pollFirst();
-            if (tray == null) break;
-            assignTray(machine, tray);
-        }
-    }
-
-    private void assignTray(UnitLogic machine, Tray tray) {
-        try {
-            int machinePpm = machine.getDefaultPpm();
-            int currentProduced = machineProduction.getOrDefault(machine, 0);
-            int currentOk = machineOkCounts.getOrDefault(machine, 0);
-            int currentNg = machineNgCounts.getOrDefault(machine, 0);
-
-            boolean initialized = Boolean.TRUE.equals(machineInitialized.get(machine));
-            if (!initialized) {
-                int baseTarget = Math.max(targetQuantity, tray.plannedQty);
-                machine.startOrder(namespace, currentOrderNo, baseTarget, machinePpm);
-                machineInitialized.put(machine, true);
-            } else {
-                machine.extendOrderTarget(namespace, tray.plannedQty);
-            }
-
-            machineAssignments.put(machine, new MachineAssignment(tray, currentProduced, currentOk, currentNg));
-            machineStates.put(machine, machine.state);
-        } catch (Exception ex) {
-            System.err.printf("[%s] Failed to dispatch tray %d to %s: %s%n",
-                    lineName, tray.id, machine.getName(), ex.getMessage());
-            enqueueTray(machine.getMachineNo(), tray.plannedQty);
+    private void checkTrayCompletion(UnitLogic machine) {
+        MachineAssignment assignment = machineAssignments.get(machine);
+        if (assignment == null) return;
+        int producedDelta = machineProduction.getOrDefault(machine, 0) - assignment.startProduced;
+        int okDelta = machineOkCounts.getOrDefault(machine, 0) - assignment.startOk;
+        int ngDelta = machineNgCounts.getOrDefault(machine, 0) - assignment.startNg;
+        if (producedDelta >= assignment.plannedQty || okDelta + ngDelta >= assignment.plannedQty) {
+            completeTray(machine);
         }
     }
 
@@ -326,75 +264,150 @@ public class ProductionLineController {
         MachineAssignment assignment = machineAssignments.remove(machine);
         if (assignment == null) return;
 
+        StageState stage = stages.get(assignment.stageNo);
+        Tray tray = assignment.tray;
+
         int totalOk = machineOkCounts.getOrDefault(machine, 0);
         int totalNg = machineNgCounts.getOrDefault(machine, 0);
-        int trayOk = Math.max(0, totalOk - assignment.startOk);
+        int okDelta = Math.max(0, totalOk - assignment.startOk);
+        int ngDelta = Math.max(0, totalNg - assignment.startNg);
 
-        int stageNo = machine.getMachineNo();
-        int nextIndex = stageOrder.indexOf(stageNo) + 1;
+        tray.serials.clear();
+        tray.serials.addAll(machine.getTraySerialsSnapshot());
+        tray.rejectedSerials.clear();
+        tray.rejectedSerials.addAll(machine.getTrayRejectedSerialsSnapshot());
 
-        if (nextIndex < stageOrder.size()) {
-            if (trayOk > 0) {
-                int nextStage = stageOrder.get(nextIndex);
-                enqueueTray(nextStage, trayOk);
-                dispatchStage(nextStage);
+        if (stage.stageNo == STAGE_ELECTRODE && tray.serials.isEmpty()) {
+            tray.serials.addAll(generateSerials(assignment.plannedQty - ngDelta));
+        }
+        if (stage.stageNo >= STAGE_ELECTRODE) {
+            tray.plannedQty = tray.serials.size();
+        }
+
+        int stageIndex = stageOrder.indexOf(stage.stageNo);
+        if (stageIndex >= 0 && stageIndex < stageOrder.size() - 1) {
+            int nextStageNo = stageOrder.get(stageIndex + 1);
+            StageState next = stages.get(nextStageNo);
+            if (next != null && tray.plannedQty > 0) {
+                next.queue.addLast(tray);
+                dispatchStage(nextStageNo);
             }
         } else {
-            finalOkTotal += trayOk;
+            finalOkTotal += okDelta;
             updateNode("order_produced_qty", finalOkTotal);
         }
 
-        boolean lineDone = orderActive && finalOkTotal >= targetQuantity;
-
-        // 결정: 이 설비가 즉시 다음 트레이를 이어서 처리할 수 있는가?
-        int producedTotal = machineProduction.getOrDefault(machine, 0);
-        machine.acknowledgeOrderCompletion(namespace);
-        machine.updateProducedQuantity(namespace, producedTotal);
-        machine.updateQualityCounts(namespace, totalOk, totalNg);
-        machineStates.put(machine, machine.state);
-
-        if (!lineDone) {
-            dispatchStage(stageNo);
-            ensureUpstreamSupply();
-        } else {
+        boolean lineDone = finalOkTotal >= targetQuantity;
+        if (lineDone && allTraysCompleted()) {
             awaitingAck = true;
             orderStatus = "WAITING_ACK";
             updateLineTelemetry();
+        } else {
+            dispatchStage(stage.stageNo);
+            ensureUpstreamSupply();
         }
+    }
+
+    private boolean allTraysCompleted() {
+        if (!machineAssignments.isEmpty()) {
+            return false;
+        }
+        for (StageState state : stages.values()) {
+            if (!state.queue.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void ensureUpstreamSupply() {
-        if (stageOrder.isEmpty() || !orderActive) return;
-        int firstStage = stageOrder.get(0);
-        if (finalOkTotal >= targetQuantity) return;
-
-        Deque<Tray> queue = stageQueues.get(firstStage);
-        boolean stageBusy = stageMachines.get(firstStage).stream()
-                .anyMatch(machineAssignments::containsKey);
-
-        if ((queue == null || queue.isEmpty()) && !stageBusy) {
-            enqueueTray(firstStage, TRAY_SIZE);
-            dispatchStage(firstStage);
+        if (!orderActive || finalOkTotal >= targetQuantity) {
+            return;
+        }
+        int potential = calculateOutstandingPotential();
+        if (finalOkTotal + potential >= targetQuantity) {
+            return;
+        }
+        StageState firstStage = stages.get(STAGE_TRAY_CLEAN);
+        if (firstStage != null) {
+            firstStage.queue.addLast(new Tray(nextTrayId(), TRAY_CAPACITY));
+            dispatchStage(STAGE_TRAY_CLEAN);
         }
     }
 
-    private synchronized void acknowledge() {
-        machines.forEach(machine -> machine.acknowledgeOrderCompletion(namespace));
-        orderStatus = "ACKED";
-        awaitingAck = false;
-        orderActive = false;
-        stageQueues.clear();
-        machineAssignments.clear();
-        updateLineTelemetry();
+    private int calculateOutstandingPotential() {
+        int potential = 0;
+        for (StageState stage : stages.values()) {
+            for (Tray tray : stage.queue) {
+                potential += Math.max(0, tray.plannedQty);
+            }
+        }
+        for (MachineAssignment assignment : machineAssignments.values()) {
+            int producedDelta = machineProduction.getOrDefault(assignment.machine, 0) - assignment.startProduced;
+            potential += Math.max(0, assignment.plannedQty - producedDelta);
+        }
+        return potential;
     }
 
-    private synchronized void stopLine() {
-        machines.forEach(UnitLogic::requestSimulationStop);
-        orderStatus = "STOPPING";
-        orderActive = false;
-        stageQueues.clear();
-        machineAssignments.clear();
-        updateLineTelemetry();
+    private void dispatchStage(int stageNo) {
+        StageState stage = stages.get(stageNo);
+        if (stage == null) return;
+        while (!stage.queue.isEmpty()) {
+            boolean anyAssigned = false;
+            for (UnitLogic machine : stage.machines) {
+                if (stage.queue.isEmpty()) break;
+                if (machineAssignments.containsKey(machine)) continue;
+                if (machine.awaitingMesAck) continue;
+                String stateName = machineStates.getOrDefault(machine, machine.state);
+                if (!"IDLE".equalsIgnoreCase(stateName)) continue;
+
+                Tray tray = stage.queue.pollFirst();
+                if (tray == null) break;
+                assignTrayToMachine(stage.stageNo, machine, tray);
+                anyAssigned = true;
+            }
+            if (!anyAssigned) {
+                break;
+            }
+        }
+    }
+
+    private void assignTrayToMachine(int stageNo, UnitLogic machine, Tray tray) {
+        if (stageNo == STAGE_ELECTRODE && tray.serials.isEmpty()) {
+            tray.serials.addAll(generateSerials(tray.plannedQty));
+        }
+        machine.assignTray(namespace, tray.trayId, tray.serials);
+        if (!machine.isContinuousMode()) {
+            machine.beginContinuousOrder(namespace, currentOrderNo, tray.plannedQty, machine.getDefaultPpm());
+        } else {
+            machine.appendOrderTarget(namespace, tray.plannedQty);
+        }
+        MachineAssignment assignment = new MachineAssignment(stageNo, machine, tray,
+                machineProduction.getOrDefault(machine, 0),
+                machineOkCounts.getOrDefault(machine, 0),
+                machineNgCounts.getOrDefault(machine, 0));
+        machineAssignments.put(machine, assignment);
+    }
+
+    private List<String> generateSerials(int count) {
+        List<String> serials = new ArrayList<>(Math.max(0, count));
+        for (int i = 0; i < count; i++) {
+            serials.add(serialPrefix + String.format("%020d", serialCounter++));
+        }
+        return serials;
+    }
+
+    private String nextTrayId() {
+        trayIdCounter++;
+        return String.format("synklabTID-%010d", trayIdCounter);
+    }
+
+    private Iterable<UnitLogic> machines() {
+        List<UnitLogic> list = new ArrayList<>();
+        for (StageState state : stages.values()) {
+            list.addAll(state.machines);
+        }
+        return list;
     }
 
     private void updateLineTelemetry() {
@@ -412,23 +425,54 @@ public class ProductionLineController {
         }
     }
 
-    private boolean isLastMachine(UnitLogic machine) {
-        if (stageOrder.isEmpty()) return false;
-        int lastStage = stageOrder.get(stageOrder.size() - 1);
-        return machine.getMachineNo() == lastStage;
+    private static final class StageState {
+        final int stageNo;
+        final List<UnitLogic> machines = new ArrayList<>();
+        final Deque<Tray> queue = new ArrayDeque<>();
+
+        StageState(int stageNo) {
+            this.stageNo = stageNo;
+        }
+
+        void clearQueue() {
+            queue.clear();
+        }
     }
 
-    private synchronized void resetLineState() {
-        orderStatus = "IDLE";
-        orderActive = false;
-        awaitingAck = false;
-        orderNo = "";
-        targetQuantity = 0;
-        finalOkTotal = 0;
-        trayCounter = 0;
-        stageQueues.clear();
-        machineAssignments.clear();
-        updateLineTelemetry();
-        updateNode("order_produced_qty", 0);
+    private static final class Tray {
+        final String trayId;
+        int plannedQty;
+        final List<String> serials = new ArrayList<>();
+        final List<String> rejectedSerials = new ArrayList<>();
+
+        Tray(String trayId, int plannedQty) {
+            this.trayId = trayId;
+            this.plannedQty = plannedQty;
+        }
+    }
+
+    private static final class MachineAssignment {
+        final int stageNo;
+        final UnitLogic machine;
+        final Tray tray;
+        final int plannedQty;
+        final int startProduced;
+        final int startOk;
+        final int startNg;
+
+        MachineAssignment(int stageNo,
+                          UnitLogic machine,
+                          Tray tray,
+                          int startProduced,
+                          int startOk,
+                          int startNg) {
+            this.stageNo = stageNo;
+            this.machine = machine;
+            this.tray = tray;
+            this.plannedQty = tray.plannedQty;
+            this.startProduced = startProduced;
+            this.startOk = startOk;
+            this.startNg = startNg;
+        }
     }
 }
