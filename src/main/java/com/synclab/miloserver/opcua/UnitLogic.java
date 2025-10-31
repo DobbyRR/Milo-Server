@@ -7,7 +7,9 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -29,6 +31,8 @@ public abstract class UnitLogic {
     protected String processId;
     protected String orderNo = "";
     protected String trayId = "";
+    protected final List<String> traySerials = new ArrayList<>();
+    protected final List<String> trayRejectedSerials = new ArrayList<>();
 
     protected int targetQuantity = 0;
     protected int producedQuantity = 0;
@@ -70,6 +74,7 @@ public abstract class UnitLogic {
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     protected long stateStartTime = System.currentTimeMillis();
     private ProductionLineController lineController;
+    protected boolean continuousMode = false;
 
     protected UnitLogic(String name, UaFolderNode machineFolder) {
         this.name = name;
@@ -102,6 +107,10 @@ public abstract class UnitLogic {
         telemetryNodes.put("energy_usage", ns.addVariableNode(machineFolder, name + ".energy_usage", energyUsage));
         telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, name + ".last_maintenance", lastMaintenance.toString()));
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
+        telemetryNodes.put("tray_serials", ns.addVariableNode(machineFolder, name + ".tray_serials", ""));
+        telemetryNodes.put("tray_ng_serials", ns.addVariableNode(machineFolder, name + ".tray_ng_serials", ""));
+        telemetryNodes.put("tray_ok_count", ns.addVariableNode(machineFolder, name + ".tray_ok_count", 0));
+        telemetryNodes.put("tray_ng_count", ns.addVariableNode(machineFolder, name + ".tray_ng_count", 0));
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
         telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder, name + ".order_target_qty", targetQuantity));
         telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
@@ -152,6 +161,118 @@ public abstract class UnitLogic {
             lineController.onMachineQualityChanged(this, okCount, ngCount);
         }
     }
+
+    protected void updateTrayTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "tray_id", trayId);
+        updateTelemetry(ns, "tray_serials", serializeSerials(traySerials));
+        updateTelemetry(ns, "tray_ng_serials", serializeSerials(trayRejectedSerials));
+        updateTelemetry(ns, "tray_ok_count", traySerials.size());
+        updateTelemetry(ns, "tray_ng_count", trayRejectedSerials.size());
+    }
+
+    private String serializeSerials(List<String> serials) {
+        return serials.isEmpty() ? "" : String.join(",", serials);
+    }
+
+    protected synchronized void clearTrayContext(MultiMachineNameSpace ns) {
+        trayId = "";
+        traySerials.clear();
+        trayRejectedSerials.clear();
+        updateTrayTelemetry(ns);
+    }
+
+    public synchronized void assignTray(MultiMachineNameSpace ns, String newTrayId, List<String> okSerials) {
+        this.trayId = newTrayId != null ? newTrayId : "";
+        traySerials.clear();
+        trayRejectedSerials.clear();
+        if (okSerials != null) {
+            traySerials.addAll(okSerials);
+        }
+        updateTrayTelemetry(ns);
+    }
+
+    public synchronized void markTraySerials(MultiMachineNameSpace ns, List<String> okSerials, List<String> ngSerials) {
+        traySerials.clear();
+        trayRejectedSerials.clear();
+        if (okSerials != null) {
+            traySerials.addAll(okSerials);
+        }
+        if (ngSerials != null) {
+            trayRejectedSerials.addAll(ngSerials);
+        }
+        updateTrayTelemetry(ns);
+    }
+
+    public synchronized void rejectTraySerial(MultiMachineNameSpace ns, String serial) {
+        if (serial == null || serial.isBlank()) return;
+        if (traySerials.remove(serial)) {
+            trayRejectedSerials.add(serial);
+            updateTrayTelemetry(ns);
+        }
+    }
+
+    public synchronized List<String> getTraySerialsSnapshot() {
+        return new ArrayList<>(traySerials);
+    }
+
+    public synchronized List<String> getTrayRejectedSerialsSnapshot() {
+        return new ArrayList<>(trayRejectedSerials);
+    }
+
+    public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,
+                                                  String newOrderNo,
+                                                  int initialTargetQuantity,
+                                                  int targetPpm) {
+        if (newOrderNo != null && !newOrderNo.isBlank()) {
+            orderNo = newOrderNo;
+            updateTelemetry(ns, "order_no", orderNo);
+        }
+        if (targetPpm > 0) {
+            ppm = targetPpm;
+            updateTelemetry(ns, "PPM", ppm);
+        }
+        if (initialTargetQuantity > 0) {
+            targetQuantity += initialTargetQuantity;
+            updateTelemetry(ns, "order_target_qty", targetQuantity);
+        }
+        continuousMode = true;
+        orderActive = true;
+        awaitingMesAck = false;
+        updateTelemetry(ns, "mes_ack_pending", awaitingMesAck);
+        updateOrderStatus(ns, "RUNNING");
+        startSimulation(ns);
+        if (!"EXECUTE".equals(state) && !"STARTING".equals(state)) {
+            changeState(ns, "STARTING");
+        }
+    }
+
+    public synchronized void appendOrderTarget(MultiMachineNameSpace ns, int additionalQuantity) {
+        if (additionalQuantity <= 0) {
+            return;
+        }
+        targetQuantity += additionalQuantity;
+        updateTelemetry(ns, "order_target_qty", targetQuantity);
+        if (!orderActive) {
+            orderActive = true;
+            updateOrderStatus(ns, "RUNNING");
+        }
+        continuousMode = true;
+        awaitingMesAck = false;
+        updateTelemetry(ns, "mes_ack_pending", awaitingMesAck);
+        startSimulation(ns);
+        if (!"EXECUTE".equals(state) && !"STARTING".equals(state)) {
+            changeState(ns, "STARTING");
+        }
+    }
+
+    public synchronized boolean isContinuousMode() {
+        return continuousMode;
+    }
+
+    public synchronized void endContinuousOrder() {
+        continuousMode = false;
+    }
+
 
     protected void updateMesAckPending(MultiMachineNameSpace ns, boolean pending) {
         awaitingMesAck = pending;
@@ -395,6 +516,11 @@ public abstract class UnitLogic {
     }
 
     protected void onOrderCompleted(MultiMachineNameSpace ns) {
+        if (continuousMode) {
+            updateOrderStatus(ns, "RUNNING");
+            updateMesAckPending(ns, false);
+            return;
+        }
         if (!awaitingMesAck) {
             updateOrderStatus(ns, "WAITING_ACK");
             updateMesAckPending(ns, true);
@@ -419,6 +545,8 @@ public abstract class UnitLogic {
         this.orderActive = false;
         this.cycleAccumulator = 0.0;
         this.lastProducedIncrement = 0;
+        this.continuousMode = false;
+        clearTrayContext(ns);
         updateTelemetry(ns, "order_no", orderNo);
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, producedQuantity);
