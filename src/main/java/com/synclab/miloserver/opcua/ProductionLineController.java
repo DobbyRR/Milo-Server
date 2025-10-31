@@ -42,6 +42,7 @@ public class ProductionLineController {
     private final List<Integer> stageOrder = new ArrayList<>();
     private final Map<Integer, Deque<Tray>> stageQueues = new HashMap<>();
     private final Map<UnitLogic, MachineAssignment> machineAssignments = new HashMap<>();
+    private final Map<UnitLogic, Boolean> machineInitialized = new HashMap<>();
 
     /** 라인 텔레메트리 */
     private final Map<String, UaVariableNode> nodes = new HashMap<>();
@@ -209,11 +210,9 @@ public class ProductionLineController {
     }
 
     private void enqueueInitialTrays(int stageNo, int totalQty) {
-        int remaining = totalQty;
-        while (remaining > 0) {
-            int qty = Math.min(TRAY_SIZE, remaining);
-            enqueueTray(stageNo, qty);
-            remaining -= qty;
+        int trays = Math.max(1, (int) Math.ceil((double) totalQty / TRAY_SIZE));
+        for (int i = 0; i < trays; i++) {
+            enqueueTray(stageNo, TRAY_SIZE);
         }
     }
 
@@ -238,6 +237,12 @@ public class ProductionLineController {
     public synchronized void onMachineQualityChanged(UnitLogic machine, int okTotal, int ngTotal) {
         machineOkCounts.put(machine, okTotal);
         machineNgCounts.put(machine, ngTotal);
+        MachineAssignment assignment = machineAssignments.get(machine);
+        if (assignment == null) return;
+        int trayOk = Math.max(0, okTotal - assignment.startOk);
+        if (trayOk >= assignment.tray.plannedQty) {
+            completeTray(machine);
+        }
     }
 
     public synchronized void onMachineAckPendingChanged(UnitLogic machine, boolean pending) {
@@ -299,12 +304,17 @@ public class ProductionLineController {
             int currentOk = machineOkCounts.getOrDefault(machine, 0);
             int currentNg = machineNgCounts.getOrDefault(machine, 0);
 
-            machine.startOrder(namespace, currentOrderNo, tray.plannedQty, machinePpm);
-            machine.updateProducedQuantity(namespace, currentProduced);
-            machine.updateQualityCounts(namespace, currentOk, currentNg);
-            machineStates.put(machine, machine.state);
+            boolean initialized = Boolean.TRUE.equals(machineInitialized.get(machine));
+            if (!initialized) {
+                int baseTarget = Math.max(targetQuantity, tray.plannedQty);
+                machine.startOrder(namespace, currentOrderNo, baseTarget, machinePpm);
+                machineInitialized.put(machine, true);
+            } else {
+                machine.extendOrderTarget(namespace, tray.plannedQty);
+            }
 
             machineAssignments.put(machine, new MachineAssignment(tray, currentProduced, currentOk, currentNg));
+            machineStates.put(machine, machine.state);
         } catch (Exception ex) {
             System.err.printf("[%s] Failed to dispatch tray %d to %s: %s%n",
                     lineName, tray.id, machine.getName(), ex.getMessage());
@@ -319,7 +329,6 @@ public class ProductionLineController {
         int totalOk = machineOkCounts.getOrDefault(machine, 0);
         int totalNg = machineNgCounts.getOrDefault(machine, 0);
         int trayOk = Math.max(0, totalOk - assignment.startOk);
-        int trayNg = Math.max(0, totalNg - assignment.startNg);
 
         int stageNo = machine.getMachineNo();
         int nextIndex = stageOrder.indexOf(stageNo) + 1;
@@ -333,22 +342,24 @@ public class ProductionLineController {
         } else {
             finalOkTotal += trayOk;
             updateNode("order_produced_qty", finalOkTotal);
-            if (orderActive && finalOkTotal >= targetQuantity) {
-                awaitingAck = true;
-                orderStatus = "WAITING_ACK";
-                updateLineTelemetry();
-            }
         }
 
+        boolean lineDone = orderActive && finalOkTotal >= targetQuantity;
+
+        // 결정: 이 설비가 즉시 다음 트레이를 이어서 처리할 수 있는가?
         int producedTotal = machineProduction.getOrDefault(machine, 0);
         machine.acknowledgeOrderCompletion(namespace);
         machine.updateProducedQuantity(namespace, producedTotal);
         machine.updateQualityCounts(namespace, totalOk, totalNg);
         machineStates.put(machine, machine.state);
-        dispatchStage(stageNo);
 
-        if (orderActive && finalOkTotal < targetQuantity) {
+        if (!lineDone) {
+            dispatchStage(stageNo);
             ensureUpstreamSupply();
+        } else {
+            awaitingAck = true;
+            orderStatus = "WAITING_ACK";
+            updateLineTelemetry();
         }
     }
 
