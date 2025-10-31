@@ -76,6 +76,12 @@ public class TrayCleaner01 extends UnitLogic {
                 double cleanliness = 92 + (Math.random() - 0.5) * 4;
                 double staticLevel = 0.02 + Math.random() * 0.015;
                 double airPressure = 5.8 + (Math.random() - 0.5) * 0.4;
+                boolean pass = Math.random() >= 0.01; // 목표: 약 1% 불량률
+                if (!pass) {
+                    cleanliness = 74 + Math.random() * 4;
+                    staticLevel = 0.08 + Math.random() * 0.02;
+                    airPressure = 4.8 + Math.random() * 0.4;
+                }
 
                 updateTelemetry(ns,"surface_cleanliness", cleanliness);
                 updateTelemetry(ns,"static_level", staticLevel);
@@ -91,12 +97,12 @@ public class TrayCleaner01 extends UnitLogic {
                 boolean cleanOk = cleanliness >= 88;
                 boolean staticOk = staticLevel <= 0.05;
                 boolean pressureOk = airPressure >= 5.3 && airPressure <= 6.7;
+                boolean cycleOk = pass && cleanOk && staticOk && pressureOk;
 
                 applyOperatingEnergy(ns);
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
                 if (producedUnits > 0) {
-                    boolean cycleOk = cleanOk && staticOk && pressureOk;
                     int okUnits = cycleOk ? producedUnits : 0;
                     int ngUnits = cycleOk ? 0 : producedUnits;
                     updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
