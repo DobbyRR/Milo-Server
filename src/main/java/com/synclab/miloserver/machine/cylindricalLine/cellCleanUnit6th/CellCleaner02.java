@@ -4,20 +4,20 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-public class CellCleaner01 extends UnitLogic {
+public class CellCleaner02 extends UnitLogic {
 
-    private double moisturePhase = 0.0;
+    private double moisturePhase = Math.PI / 3;
 
-    public CellCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public CellCleaner02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "CELL_CLEAN";
         this.lineId = "CylindricalLine";
         this.machineNo = 6;
-        this.equipmentId = "CC-01";
+        this.equipmentId = "CC-02";
         this.processId = "CellCleaning";
-        this.defaultPpm = 55;
+        this.defaultPpm = 56;
         setUnitsPerCycle(36);
-        configureEnergyProfile(0.5, 0.07, 5.0, 0.6);
+        configureEnergyProfile(0.52, 0.07, 5.2, 0.65);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -35,7 +35,7 @@ public class CellCleaner01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[CellCleaner01] Unsupported command '%s'%n", command);
+            System.err.printf("[CellCleaner02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -44,8 +44,8 @@ public class CellCleaner01 extends UnitLogic {
         switch (state) {
             case "IDLE":
                 moisturePhase += 0.05;
-                updateTelemetry(ns, "residual_moisture", 8 + Math.abs(Math.sin(moisturePhase)) * 2);
-                updateTelemetry(ns, "drying_temperature", 40 + (Math.random() - 0.5) * 1.5);
+                updateTelemetry(ns, "residual_moisture", 7.5 + Math.abs(Math.sin(moisturePhase)) * 2);
+                updateTelemetry(ns, "drying_temperature", 40.5 + (Math.random() - 0.5) * 1.5);
                 applyIdleDrift(ns);
                 break;
 
@@ -57,12 +57,12 @@ public class CellCleaner01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                moisturePhase += 0.2;
-                double power = 120 + (Math.random() - 0.5) * 5;
-                double residualMoisture = Math.max(0.5, 5 + Math.sin(moisturePhase) * 2);
-                boolean defectDetected = Math.random() > 0.95;
-                double dryingTemp = 55 + (Math.random() - 0.5) * 2;
-                double cleanlinessScore = 90 + (Math.random() - 0.5) * 5;
+                moisturePhase += 0.21;
+                double power = 121 + (Math.random() - 0.5) * 5;
+                double residualMoisture = Math.max(0.5, 4.8 + Math.sin(moisturePhase) * 2);
+                boolean defectDetected = Math.random() > 0.94;
+                double dryingTemp = 55.5 + (Math.random() - 0.5) * 2;
+                double cleanlinessScore = 91 + (Math.random() - 0.5) * 5;
 
                 updateTelemetry(ns, "ultrasonic_power", power);
                 updateTelemetry(ns, "residual_moisture", residualMoisture);
@@ -72,9 +72,9 @@ public class CellCleaner01 extends UnitLogic {
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 applyOperatingEnergy(ns);
 
-                boolean powerOk = power >= 115 && power <= 125;
+                boolean powerOk = power >= 116 && power <= 126;
                 boolean moistureOk = residualMoisture <= 3.0;
-                boolean tempOk = dryingTemp >= 53 && dryingTemp <= 57;
+                boolean tempOk = dryingTemp >= 53 && dryingTemp <= 58;
                 boolean cleanlinessOk = cleanlinessScore >= 88;
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
@@ -99,7 +99,6 @@ public class CellCleaner01 extends UnitLogic {
                 break;
 
             case "COMPLETE":
-                // MES 승인 대기
                 break;
 
             case "RESETTING":

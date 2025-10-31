@@ -12,8 +12,10 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ProductionLineController {
 
@@ -25,6 +27,15 @@ public class ProductionLineController {
     private final Map<UnitLogic, String> machineStates = new HashMap<>();
     private final Map<UnitLogic, Boolean> machineStarted = new HashMap<>();
     private final Map<UnitLogic, Boolean> machineCompleted = new HashMap<>();
+    private final Map<UnitLogic, Integer> machineOkCounts = new HashMap<>();
+    private final Map<UnitLogic, Integer> machineNgCounts = new HashMap<>();
+    private final Map<UnitLogic, Integer> machineTargets = new HashMap<>();
+    private final Map<Integer, List<UnitLogic>> stageMachines = new HashMap<>();
+    private final List<Integer> stageOrder = new ArrayList<>();
+    private final Map<Integer, Boolean> stageStarted = new HashMap<>();
+    private final Map<Integer, Integer> stageOutputs = new HashMap<>();
+    private final Set<Integer> completedStages = new HashSet<>();
+    private final Map<Integer, Integer> stageRequirements = new HashMap<>();
 
     private final Map<String, UaVariableNode> nodes = new HashMap<>();
 
@@ -100,6 +111,15 @@ public class ProductionLineController {
         machineStates.put(machine, machine.state);
         machineStarted.put(machine, false);
         machineCompleted.put(machine, false);
+        machineOkCounts.put(machine, 0);
+        machineNgCounts.put(machine, 0);
+        machineTargets.put(machine, 0);
+        int stageNo = machine.getMachineNo();
+        if (!stageMachines.containsKey(stageNo)) {
+            stageMachines.put(stageNo, new ArrayList<>());
+            stageOrder.add(stageNo);
+        }
+        stageMachines.get(stageNo).add(machine);
         machine.setLineController(this);
     }
 
@@ -152,11 +172,25 @@ public class ProductionLineController {
         machineStates.replaceAll((m, v) -> "IDLE");
         machineStarted.replaceAll((m, v) -> false);
         machineCompleted.replaceAll((m, v) -> false);
+        machineOkCounts.replaceAll((m, v) -> 0);
+        machineNgCounts.replaceAll((m, v) -> 0);
+        machineTargets.replaceAll((m, v) -> 0);
+        stageOutputs.clear();
+        stageStarted.clear();
+        completedStages.clear();
+        stageRequirements.clear();
+        stageOrder.sort(Integer::compareTo);
+        stageOrder.forEach(stage -> {
+            stageStarted.put(stage, false);
+            stageOutputs.put(stage, 0);
+        });
 
         updateLineTelemetry();
         updateNode("order_produced_qty", 0);
 
-        startMachineAtIndex(0);
+        if (!stageOrder.isEmpty()) {
+            startStage(stageOrder.get(0), currentOrderTargetQty);
+        }
     }
 
     private synchronized void acknowledge() {
@@ -194,21 +228,19 @@ public class ProductionLineController {
 
     public synchronized void onMachineProduced(UnitLogic machine, int producedQty, int targetQty) {
         machineProduction.put(machine, producedQty);
-        maybeStartNextMachine(machine, producedQty);
-
-        UnitLogic lastMachine = machines.isEmpty() ? null : machines.get(machines.size() - 1);
-        if (lastMachine != null) {
-            int finishedOutput = machineProduction.getOrDefault(lastMachine, 0);
-            updateNode("order_produced_qty", finishedOutput);
-            if (orderActive && targetQuantity > 0 && finishedOutput >= targetQuantity) {
-                this.awaitingAck = true;
-                this.orderStatus = "WAITING_ACK";
-                updateLineTelemetry();
-            }
-        }
-
         if (targetQty > 0 && producedQty >= targetQty) {
             machineCompleted.put(machine, true);
+        }
+        checkStageCompletion(machine.getMachineNo());
+    }
+
+    public synchronized void onMachineQualityChanged(UnitLogic machine, int okTotal, int ngTotal) {
+        machineOkCounts.put(machine, okTotal);
+        machineNgCounts.put(machine, ngTotal);
+        int stageNo = machine.getMachineNo();
+        if (isLastStage(stageNo)) {
+            int okSum = getStageOkTotal(stageNo);
+            updateNode("order_produced_qty", okSum);
         }
     }
 
@@ -243,45 +275,144 @@ public class ProductionLineController {
         }
     }
 
-    private void startMachineAtIndex(int index) {
-        if (index < 0 || index >= machines.size()) {
+    private void startStage(int stageNo, int requestedQty) {
+        if (Boolean.TRUE.equals(stageStarted.get(stageNo))) {
             return;
         }
-        UnitLogic machine = machines.get(index);
-        if (Boolean.TRUE.equals(machineStarted.get(machine))) {
+        List<UnitLogic> stageList = stageMachines.get(stageNo);
+        int cumulativeOk = stageOutputs.getOrDefault(stageNo, 0);
+        int requirement = stageRequirements.computeIfAbsent(stageNo, k -> requestedQty);
+        if (requirement <= 0 && requestedQty > 0) {
+            requirement = requestedQty;
+            stageRequirements.put(stageNo, requirement);
+        }
+        int remaining = requirement > 0 ? Math.max(0, requirement - cumulativeOk) : requestedQty;
+        if (remaining <= 0) {
+            stageStarted.put(stageNo, false);
+            checkStageCompletion(stageNo);
             return;
         }
-        machineStarted.put(machine, true);
-        machineCompleted.put(machine, false);
-        machineProduction.put(machine, 0);
-        try {
-            int machinePpm = machine.getDefaultPpm();
-            machine.startOrder(namespace, currentOrderNo, currentOrderTargetQty, machinePpm);
-        } catch (Exception ex) {
-            System.err.printf("[%s] Failed to start machine %s: %s%n",
-                    lineName, machine.getName(), ex.getMessage());
+        if (stageList == null || stageList.isEmpty()) {
+            stageOutputs.put(stageNo, cumulativeOk);
+            onStageCompleted(stageNo);
+            return;
+        }
+        stageStarted.put(stageNo, true);
+        int stageSize = stageList.size();
+        int traySize = Math.max(1, stageList.get(0).getUnitsPerCycle());
+        int totalCycles = remaining <= 0 ? 0 : (int) Math.ceil((double) remaining / traySize);
+        int baseCycles = stageSize == 0 ? 0 : totalCycles / stageSize;
+        int extraCycles = stageSize == 0 ? 0 : totalCycles % stageSize;
+        for (int i = 0; i < stageSize; i++) {
+            UnitLogic machine = stageList.get(i);
+            int cycles = baseCycles + (i < extraCycles ? 1 : 0);
+            int machineTargetQty = cycles * traySize;
+            machineTargets.put(machine, machineTargetQty);
+            machineProduction.put(machine, 0);
+            if (machineTargetQty <= 0) {
+                machineStarted.put(machine, false);
+                machineCompleted.put(machine, true);
+                continue;
+            }
+            machineStarted.put(machine, true);
+            machineCompleted.put(machine, false);
+            try {
+                int machinePpm = machine.getDefaultPpm();
+                machine.startOrder(namespace, currentOrderNo, machineTargetQty, machinePpm);
+            } catch (Exception ex) {
+                System.err.printf("[%s] Failed to start machine %s: %s%n",
+                        lineName, machine.getName(), ex.getMessage());
+                machineCompleted.put(machine, true);
+                machineTargets.put(machine, 0);
+            }
+        }
+        checkStageCompletion(stageNo);
+    }
+
+    private void checkStageCompletion(int stageNo) {
+        if (completedStages.contains(stageNo)) {
+            return;
+        }
+        if (isStageComplete(stageNo)) {
+            onStageCompleted(stageNo);
         }
     }
 
-    private void maybeStartNextMachine(UnitLogic machine, int producedQty) {
-        if (!orderActive || producedQty <= 0) {
+    private boolean isStageComplete(int stageNo) {
+        List<UnitLogic> stageList = stageMachines.get(stageNo);
+        if (stageList == null || stageList.isEmpty()) {
+            return true;
+        }
+        for (UnitLogic machine : stageList) {
+            int target = machineTargets.getOrDefault(machine, 0);
+            if (target > 0 && !Boolean.TRUE.equals(machineCompleted.get(machine))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void onStageCompleted(int stageNo) {
+        int okSum = getStageOkTotal(stageNo);
+        stageOutputs.put(stageNo, okSum);
+        int requirement = stageRequirements.getOrDefault(stageNo, 0);
+        if (requirement > 0 && okSum < requirement) {
+            stageStarted.put(stageNo, false);
+            List<UnitLogic> stageList = stageMachines.get(stageNo);
+            if (stageList != null) {
+                stageList.forEach(machine -> {
+                    machineStarted.put(machine, false);
+                    machineTargets.put(machine, 0);
+                });
+            }
+            int deficit = requirement - okSum;
+            if (deficit > 0) {
+                startStage(stageNo, deficit);
+            }
             return;
         }
-        int index = machines.indexOf(machine);
+        if (completedStages.contains(stageNo)) {
+            return;
+        }
+        completedStages.add(stageNo);
+        stageStarted.put(stageNo, false);
+        List<UnitLogic> stageList = stageMachines.get(stageNo);
+        if (stageList != null) {
+            stageList.forEach(machine -> machineStarted.put(machine, false));
+        }
+        int index = stageOrder.indexOf(stageNo);
         if (index == -1) {
             return;
         }
-        int nextIndex = index + 1;
-        if (nextIndex < machines.size()) {
-            UnitLogic next = machines.get(nextIndex);
-            if (!Boolean.TRUE.equals(machineStarted.get(next))) {
-                startMachineAtIndex(nextIndex);
+        if (index == stageOrder.size() - 1) {
+            updateNode("order_produced_qty", okSum);
+            if (orderActive) {
+                awaitingAck = true;
+                orderStatus = "WAITING_ACK";
+                updateLineTelemetry();
             }
+        } else {
+            int nextStage = stageOrder.get(index + 1);
+            startStage(nextStage, okSum);
         }
     }
 
+    private int getStageOkTotal(int stageNo) {
+        List<UnitLogic> stageList = stageMachines.get(stageNo);
+        if (stageList == null || stageList.isEmpty()) {
+            return 0;
+        }
+        return stageList.stream()
+                .mapToInt(machine -> machineOkCounts.getOrDefault(machine, 0))
+                .sum();
+    }
+
+    private boolean isLastStage(int stageNo) {
+        return !stageOrder.isEmpty() && stageOrder.get(stageOrder.size() - 1) == stageNo;
+    }
+
     private boolean isLastMachine(UnitLogic machine) {
-        return !machines.isEmpty() && machines.get(machines.size() - 1) == machine;
+        return isLastStage(machine.getMachineNo());
     }
 
     private void resetLineState() {
@@ -297,6 +428,13 @@ public class ProductionLineController {
         machineProduction.replaceAll((m, v) -> 0);
         machineStarted.replaceAll((m, v) -> false);
         machineCompleted.replaceAll((m, v) -> false);
+        machineOkCounts.replaceAll((m, v) -> 0);
+        machineNgCounts.replaceAll((m, v) -> 0);
+        machineTargets.replaceAll((m, v) -> 0);
+        stageStarted.clear();
+        stageOutputs.clear();
+        completedStages.clear();
+        stageRequirements.clear();
         updateLineTelemetry();
         updateNode("order_produced_qty", 0);
     }

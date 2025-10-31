@@ -1,11 +1,17 @@
 package com.synclab.miloserver.opcua;
 
 import com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd.AssemblyUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd.AssemblyUnit02;
 import com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th.CellCleaner01;
+import com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th.CellCleaner02;
 import com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd.ElectrodeUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd.ElectrodeUnit02;
 import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection01;
+import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection02;
 import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit02;
 import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModulAndPackUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModulAndPackUnit02;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 import org.eclipse.milo.opcua.sdk.core.AccessLevel;
@@ -123,20 +129,32 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         UnitLogic trayCleaner01 = new TrayCleaner01("TrayCleaner01", addFolder(line01Folder, "TrayCleaner01"), this);
         UnitLogic trayCleaner02 = new TrayCleaner02("TrayCleaner02", addFolder(line01Folder, "TrayCleaner02"), this);
         UnitLogic electrodeUnit01 = new ElectrodeUnit01("ElectrodeUnit01", addFolder(line01Folder, "ElectrodeUnit01"), this);
+        UnitLogic electrodeUnit02 = new ElectrodeUnit02("ElectrodeUnit02", addFolder(line01Folder, "ElectrodeUnit02"), this);
         UnitLogic assemblyUnit01 = new AssemblyUnit01("AssemblyUnit01", addFolder(line01Folder, "AssemblyUnit01"), this);
+        UnitLogic assemblyUnit02 = new AssemblyUnit02("AssemblyUnit02", addFolder(line01Folder, "AssemblyUnit02"), this);
         UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(line01Folder, "FormationUnit01"), this);
+        UnitLogic formationUnit02 = new FormationUnit02("FormationUnit02", addFolder(line01Folder, "FormationUnit02"), this);
         UnitLogic modulePackUnit01 = new ModulAndPackUnit01("ModuleAndPackUnit01", addFolder(line01Folder, "ModuleAndPackUnit01"), this);
+        UnitLogic modulePackUnit02 = new ModulAndPackUnit02("ModuleAndPackUnit02", addFolder(line01Folder, "ModuleAndPackUnit02"), this);
         UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(line01Folder, "CellCleaner01"), this);
+        UnitLogic cellCleaner02 = new CellCleaner02("CellCleaner02", addFolder(line01Folder, "CellCleaner02"), this);
         UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(line01Folder, "FinalInspection01"), this);
+        UnitLogic finalInspection02 = new FinalInspection02("FinalInspection02", addFolder(line01Folder, "FinalInspection02"), this);
 
         registerMachine(trayCleaner01, line01Controller);
         registerMachine(trayCleaner02, line01Controller);
         registerMachine(electrodeUnit01, line01Controller);
+        registerMachine(electrodeUnit02, line01Controller);
         registerMachine(assemblyUnit01, line01Controller);
+        registerMachine(assemblyUnit02, line01Controller);
         registerMachine(formationUnit01, line01Controller);
+        registerMachine(formationUnit02, line01Controller);
         registerMachine(modulePackUnit01, line01Controller);
+        registerMachine(modulePackUnit02, line01Controller);
         registerMachine(cellCleaner01, line01Controller);
+        registerMachine(cellCleaner02, line01Controller);
         registerMachine(finalInspection01, line01Controller);
+        registerMachine(finalInspection02, line01Controller);
 
         System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");

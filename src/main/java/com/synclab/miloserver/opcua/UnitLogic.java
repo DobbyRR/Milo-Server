@@ -148,6 +148,9 @@ public abstract class UnitLogic {
         this.ngCount = ngValue;
         updateTelemetry(ns, "order_ok_qty", okCount);
         updateTelemetry(ns, "order_ng_qty", ngCount);
+        if (lineController != null) {
+            lineController.onMachineQualityChanged(this, okCount, ngCount);
+        }
     }
 
     protected void updateMesAckPending(MultiMachineNameSpace ns, boolean pending) {
@@ -232,6 +235,10 @@ public abstract class UnitLogic {
 
     public int getLastProducedIncrement() {
         return lastProducedIncrement;
+    }
+
+    public int getMachineNo() {
+        return machineNo;
     }
 
     public void configureEnergyProfile(double idleBase, double idleJitter, double operatingBase, double operatingJitter) {

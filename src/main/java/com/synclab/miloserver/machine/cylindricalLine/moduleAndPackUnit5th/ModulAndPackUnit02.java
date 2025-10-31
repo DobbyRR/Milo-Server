@@ -4,20 +4,20 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-public class ModulAndPackUnit01 extends UnitLogic {
+public class ModulAndPackUnit02 extends UnitLogic {
 
-    private double alignmentPhase = 0.0;
+    private double alignmentPhase = Math.PI / 3;
 
-    public ModulAndPackUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ModulAndPackUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "MODULE_PACK";
         this.lineId = "CylindricalLine";
         this.machineNo = 5;
-        this.equipmentId = "MP-01";
+        this.equipmentId = "MP-02";
         this.processId = "ModulePack";
-        this.defaultPpm = 60;
+        this.defaultPpm = 62;
         setUnitsPerCycle(36);
-        configureEnergyProfile(0.8, 0.1, 8.0, 1.0);
+        configureEnergyProfile(0.82, 0.1, 8.2, 1.05);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -35,7 +35,7 @@ public class ModulAndPackUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[ModulAndPackUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[ModulAndPackUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -43,8 +43,8 @@ public class ModulAndPackUnit01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                alignmentPhase += 0.04;
-                updateTelemetry(ns, "cell_alignment", 0.5 + Math.abs(Math.sin(alignmentPhase)) * 0.1);
+                alignmentPhase += 0.042;
+                updateTelemetry(ns, "cell_alignment", 0.48 + Math.abs(Math.sin(alignmentPhase)) * 0.1);
                 updateTelemetry(ns, "bms_status", "IDLE");
                 applyIdleDrift(ns);
                 break;
@@ -57,12 +57,12 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                alignmentPhase += 0.18;
-                double alignment = 0.1 + Math.abs(Math.sin(alignmentPhase)) * 0.05;
-                double resistance = 3.5 + (Math.random() - 0.5) * 0.2;
+                alignmentPhase += 0.17;
+                double alignment = 0.12 + Math.abs(Math.sin(alignmentPhase)) * 0.05;
+                double resistance = 3.6 + (Math.random() - 0.5) * 0.2;
                 boolean bmsOk = Math.random() > 0.05;
-                double weld = 0.8 + (Math.random() - 0.5) * 0.05;
-                double torque = 5.5 + (Math.random() - 0.5) * 0.3;
+                double weld = 0.82 + (Math.random() - 0.5) * 0.05;
+                double torque = 5.6 + (Math.random() - 0.5) * 0.25;
 
                 updateTelemetry(ns, "cell_alignment", alignment);
                 updateTelemetry(ns, "module_resistance", resistance);
@@ -72,10 +72,10 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 applyOperatingEnergy(ns);
 
-                boolean alignmentOk = alignment <= 0.12;
-                boolean resistanceOk = resistance >= 3.3 && resistance <= 3.7;
+                boolean alignmentOk = alignment <= 0.13;
+                boolean resistanceOk = resistance >= 3.4 && resistance <= 3.8;
                 boolean weldOk = weld <= 0.85;
-                boolean torqueOk = torque >= 5.2 && torque <= 5.8;
+                boolean torqueOk = torque >= 5.3 && torque <= 5.9;
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
@@ -99,7 +99,6 @@ public class ModulAndPackUnit01 extends UnitLogic {
                 break;
 
             case "COMPLETE":
-                // MES 승인 대기
                 break;
 
             case "RESETTING":

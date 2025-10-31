@@ -73,9 +73,9 @@ public class TrayCleaner01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                double cleanliness = Math.min(100, Math.random() * 100);
-                double staticLevel = Math.random() * 0.1;
-                double airPressure = 5 + Math.random() * 2;
+                double cleanliness = 92 + (Math.random() - 0.5) * 4;
+                double staticLevel = 0.02 + Math.random() * 0.015;
+                double airPressure = 5.8 + (Math.random() - 0.5) * 0.4;
 
                 updateTelemetry(ns,"surface_cleanliness", cleanliness);
                 updateTelemetry(ns,"static_level", staticLevel);
@@ -88,16 +88,18 @@ public class TrayCleaner01 extends UnitLogic {
                 updateTelemetry(ns,"uptime", uptime += 1.0);
                 updateTelemetry(ns,"OEE", oee = 95.5);
 
-                boolean cleanOk = cleanliness >= 80;
+                boolean cleanOk = cleanliness >= 88;
                 boolean staticOk = staticLevel <= 0.05;
-                boolean pressureOk = airPressure >= 5.5 && airPressure <= 6.5;
+                boolean pressureOk = airPressure >= 5.3 && airPressure <= 6.7;
 
                 applyOperatingEnergy(ns);
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
                 if (producedUnits > 0) {
                     boolean cycleOk = cleanOk && staticOk && pressureOk;
-                    updateQualityCounts(ns, cycleOk ? producedUnits : 0, cycleOk ? 0 : producedUnits);
+                    int okUnits = cycleOk ? producedUnits : 0;
+                    int ngUnits = cycleOk ? 0 : producedUnits;
+                    updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
                 }
                 if (reachedTarget) {
                     updateOrderStatus(ns, "COMPLETING");

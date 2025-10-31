@@ -4,20 +4,20 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-public class AssemblyUnit01 extends UnitLogic {
+public class AssemblyUnit02 extends UnitLogic {
 
-    private double alignmentPhase = 0.0;
+    private double alignmentPhase = Math.PI / 4;
 
-    public AssemblyUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public AssemblyUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "ASSEMBLY";
         this.lineId = "CylindricalLine";
         this.machineNo = 3;
-        this.equipmentId = "AU-01";
+        this.equipmentId = "AU-02";
         this.processId = "Assembly";
-        this.defaultPpm = 80;
+        this.defaultPpm = 82;
         setUnitsPerCycle(36);
-        configureEnergyProfile(0.7, 0.08, 6.5, 0.8);
+        configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -35,7 +35,7 @@ public class AssemblyUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[AssemblyUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[AssemblyUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -44,8 +44,8 @@ public class AssemblyUnit01 extends UnitLogic {
         switch (state) {
             case "IDLE":
                 alignmentPhase += 0.05;
-                updateTelemetry(ns, "stack_alignment", 0.2 + Math.abs(Math.sin(alignmentPhase)) * 0.05);
-                updateTelemetry(ns, "winding_tension", 18 + (Math.random() - 0.5));
+                updateTelemetry(ns, "stack_alignment", 0.22 + Math.abs(Math.sin(alignmentPhase)) * 0.05);
+                updateTelemetry(ns, "winding_tension", 18.5 + (Math.random() - 0.5));
                 applyIdleDrift(ns);
                 break;
 
@@ -57,12 +57,12 @@ public class AssemblyUnit01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                alignmentPhase += 0.2;
-                double alignment = 0.05 + Math.abs(Math.sin(alignmentPhase)) * 0.02;
-                double tension = 20 + (Math.random() - 0.5) * 0.5;
-                double weldQuality = 95 + (Math.random() - 0.5) * 2;
-                boolean leakPass = Math.random() > 0.02;
-                double fill = 5.0 + (Math.random() - 0.5) * 0.2;
+                alignmentPhase += 0.19;
+                double alignment = 0.055 + Math.abs(Math.sin(alignmentPhase)) * 0.02;
+                double tension = 20.2 + (Math.random() - 0.5) * 0.5;
+                double weldQuality = 94.5 + (Math.random() - 0.5) * 2;
+                boolean leakPass = Math.random() > 0.025;
+                double fill = 4.9 + (Math.random() - 0.5) * 0.2;
 
                 updateTelemetry(ns, "stack_alignment", alignment);
                 updateTelemetry(ns, "winding_tension", tension);
@@ -73,9 +73,9 @@ public class AssemblyUnit01 extends UnitLogic {
                 applyOperatingEnergy(ns);
 
                 boolean alignmentOk = alignment <= 0.07;
-                boolean tensionOk = tension >= 19.5 && tension <= 20.5;
+                boolean tensionOk = tension >= 19.7 && tension <= 20.7;
                 boolean weldOk = weldQuality >= 93;
-                boolean fillOk = fill >= 4.8 && fill <= 5.2;
+                boolean fillOk = fill >= 4.7 && fill <= 5.1;
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
@@ -99,7 +99,6 @@ public class AssemblyUnit01 extends UnitLogic {
                 break;
 
             case "COMPLETE":
-                // MES 승인 대기
                 break;
 
             case "RESETTING":

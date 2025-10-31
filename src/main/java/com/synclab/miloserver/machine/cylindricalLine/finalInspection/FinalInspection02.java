@@ -4,18 +4,18 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-public class FinalInspection01 extends UnitLogic {
+public class FinalInspection02 extends UnitLogic {
 
-    public FinalInspection01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public FinalInspection02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "FINAL_INSPECTION";
         this.lineId = "CylindricalLine";
         this.machineNo = 7;
-        this.equipmentId = "FI-01";
+        this.equipmentId = "FI-02";
         this.processId = "FinalInspection";
-        this.defaultPpm = 50;
+        this.defaultPpm = 52;
         setUnitsPerCycle(36);
-        configureEnergyProfile(0.3, 0.04, 3.5, 0.5);
+        configureEnergyProfile(0.32, 0.04, 3.6, 0.45);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -33,7 +33,7 @@ public class FinalInspection01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[FinalInspection01] Unsupported command '%s'%n", command);
+            System.err.printf("[FinalInspection02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -41,8 +41,8 @@ public class FinalInspection01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                updateTelemetry(ns, "vision_score", 85 + Math.random() * 5);
-                updateTelemetry(ns, "electrical_resistance", 5 + Math.random());
+                updateTelemetry(ns, "vision_score", 84 + Math.random() * 5);
+                updateTelemetry(ns, "electrical_resistance", 5.2 + Math.random());
                 applyIdleDrift(ns);
                 break;
 
@@ -54,15 +54,15 @@ public class FinalInspection01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                double vision = 95 + (Math.random() - 0.5) * 2;
-                double electrical = 3.0 + (Math.random() - 0.5) * 0.5;
-                boolean safetyPass = Math.random() > 0.01;
+                double vision = 94.5 + (Math.random() - 0.5) * 2;
+                double electrical = 3.1 + (Math.random() - 0.5) * 0.5;
+                boolean safetyPass = Math.random() > 0.012;
                 boolean functionPass = Math.random() > 0.02;
                 updateTelemetry(ns, "vision_score", vision);
                 updateTelemetry(ns, "electrical_resistance", electrical);
                 updateTelemetry(ns, "safety_passed", safetyPass);
                 updateTelemetry(ns, "function_passed", functionPass);
-                updateTelemetry(ns, "lot_verified", "LOT-" + (1000 + (int) (Math.random() * 9000)));
+                updateTelemetry(ns, "lot_verified", "LOT-" + (2000 + (int) (Math.random() * 8000)));
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 applyOperatingEnergy(ns);
 
@@ -70,7 +70,7 @@ public class FinalInspection01 extends UnitLogic {
                 int producedUnits = getLastProducedIncrement();
                 if (producedUnits > 0) {
                     boolean visionOk = vision >= 93;
-                    boolean electricalOk = electrical >= 2.5 && electrical <= 3.5;
+                    boolean electricalOk = electrical >= 2.6 && electrical <= 3.6;
                     boolean pass = visionOk && electricalOk && safetyPass && functionPass;
                     int ngUnits = pass ? 0 : Math.min(producedUnits, Math.max(1, producedUnits / 12));
                     int okUnits = Math.max(0, producedUnits - ngUnits);
@@ -90,7 +90,6 @@ public class FinalInspection01 extends UnitLogic {
                 break;
 
             case "COMPLETE":
-                // MES 승인 대기
                 break;
 
             case "RESETTING":

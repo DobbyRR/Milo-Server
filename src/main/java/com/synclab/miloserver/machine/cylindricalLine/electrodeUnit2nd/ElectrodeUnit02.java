@@ -4,19 +4,19 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
-public class ElectrodeUnit01 extends UnitLogic {
+public class ElectrodeUnit02 extends UnitLogic {
 
-    private double mixPhase = 0.0;
+    private double mixPhase = Math.PI / 6;
 
-    public ElectrodeUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ElectrodeUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "ELECTRODE";
         this.lineId = "CylindricalLine";
         this.machineNo = 2;
-        this.equipmentId = "EU-01";
+        this.equipmentId = "EU-02";
         this.processId = "Electrode";
-        configureEnergyProfile(1.2, 0.15, 12.0, 1.5);
-        this.defaultPpm = 90;
+        configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
+        this.defaultPpm = 92;
         setUnitsPerCycle(36);
 
         setupCommonTelemetry(ns);
@@ -36,7 +36,7 @@ public class ElectrodeUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[ElectrodeUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[ElectrodeUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -44,11 +44,11 @@ public class ElectrodeUnit01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                mixPhase += 0.1;
-                double viscosityIdle = 1100 + Math.sin(mixPhase) * 40 + (Math.random() - 0.5) * 10;
+                mixPhase += 0.08;
+                double viscosityIdle = 1090 + Math.sin(mixPhase) * 35 + (Math.random() - 0.5) * 9;
                 updateTelemetry(ns, "mix_viscosity", viscosityIdle);
-                updateTelemetry(ns, "slurry_temperature", 25 + (Math.random() - 0.5) * 0.5);
-                updateTelemetry(ns, "oven_temperature", 155 + (Math.random() - 0.5));
+                updateTelemetry(ns, "slurry_temperature", 24.5 + (Math.random() - 0.5) * 0.6);
+                updateTelemetry(ns, "oven_temperature", 154 + (Math.random() - 0.5));
                 applyIdleDrift(ns);
                 break;
 
@@ -60,13 +60,13 @@ public class ElectrodeUnit01 extends UnitLogic {
                 break;
 
             case "EXECUTE":
-                mixPhase += 0.2;
-                double viscosity = 1250 + Math.sin(mixPhase) * 60 + (Math.random() - 0.5) * 20;
-                double slurryTemp = 32 + (Math.random() - 0.5) * 1.5;
-                double thickness = 85 + (Math.random() - 0.5) * 1.5;
-                double ovenTemp = 160 + (Math.random() - 0.5) * 3;
-                double pressure = 4.8 + (Math.random() - 0.5) * 0.1;
-                double slitting = 0.1 + Math.random() * 0.05;
+                mixPhase += 0.18;
+                double viscosity = 1240 + Math.sin(mixPhase) * 55 + (Math.random() - 0.5) * 18;
+                double slurryTemp = 31.5 + (Math.random() - 0.5) * 1.4;
+                double thickness = 84.5 + (Math.random() - 0.5) * 1.4;
+                double ovenTemp = 159 + (Math.random() - 0.5) * 3;
+                double pressure = 4.7 + (Math.random() - 0.5) * 0.1;
+                double slitting = 0.11 + Math.random() * 0.05;
 
                 updateTelemetry(ns, "mix_viscosity", viscosity);
                 updateTelemetry(ns, "slurry_temperature", slurryTemp);
@@ -77,12 +77,12 @@ public class ElectrodeUnit01 extends UnitLogic {
                 updateTelemetry(ns, "uptime", uptime += 1.0);
                 applyOperatingEnergy(ns);
 
-                boolean viscosityOk = viscosity >= 1200 && viscosity <= 1300;
+                boolean viscosityOk = viscosity >= 1190 && viscosity <= 1290;
                 boolean tempOk = slurryTemp >= 30 && slurryTemp <= 35;
-                boolean thicknessOk = thickness >= 83 && thickness <= 87;
-                boolean ovenOk = ovenTemp >= 158 && ovenTemp <= 162;
-                boolean pressureOk = pressure >= 4.7 && pressure <= 4.9;
-                boolean slittingOk = slitting <= 0.15;
+                boolean thicknessOk = thickness >= 83 && thickness <= 86;
+                boolean ovenOk = ovenTemp >= 157 && ovenTemp <= 161;
+                boolean pressureOk = pressure >= 4.6 && pressure <= 4.8;
+                boolean slittingOk = slitting <= 0.16;
 
                 boolean reachedTarget = accumulateProduction(ns, 1.0);
                 int producedUnits = getLastProducedIncrement();
@@ -106,7 +106,6 @@ public class ElectrodeUnit01 extends UnitLogic {
                 break;
 
             case "COMPLETE":
-                // MES 승인 대기
                 break;
 
             case "RESETTING":
