@@ -238,11 +238,11 @@ public class ElectrodeUnit02 extends UnitLogic {
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         mixPhase += 0.18;
-        viscosityCp = randomWithin(rnd, 1105.0, 0.14);
-        coatingThicknessUm = randomWithin(rnd, 86.8, 0.11);
-        ovenTempC = randomWithin(rnd, 163.0, 0.09);
-        calenderPressureMpa = randomWithin(rnd, 99.0, 0.11);
-        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 18.0;
+        viscosityCp = randomWithin(rnd, 1090.0, 0.04);
+        coatingThicknessUm = randomWithin(rnd, 88.2, 0.045);
+        ovenTempC = randomWithin(rnd, 165.0, 0.03);
+        calenderPressureMpa = randomWithin(rnd, 100.5, 0.035);
+        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 8.0;
     }
 
     private double randomWithin(ThreadLocalRandom rnd, double center, double pctSpread) {

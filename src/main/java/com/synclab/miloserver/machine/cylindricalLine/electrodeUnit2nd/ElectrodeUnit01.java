@@ -137,26 +137,33 @@ public class ElectrodeUnit01 extends UnitLogic {
     }
 
     private void handleExecute(MultiMachineNameSpace ns) {
-        totalElapsedSeconds += 1.0;
         applyOperatingEnergy(ns);
-        if (!hasMoreSerials()) {
-            if (!"IDLE".equals(state)) {
-                changeState(ns, "IDLE");
+        for (int step = 0; step < SIMULATION_SPEED; step++) {
+            double deltaSeconds = 1.0 / SIMULATION_SPEED;
+            totalElapsedSeconds += deltaSeconds;
+
+            if (!hasMoreSerials()) {
+                if (!"IDLE".equals(state)) {
+                    changeState(ns, "IDLE");
+                }
+                return;
             }
-            return;
-        }
-        if (!prepareCurrentSerial(ns)) {
-            return;
-        }
-        stageElapsed += 1.0;
-        if (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-            stageElapsed = 0.0;
-            stageIndex++;
-        }
-        if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-            concludeSerialCycle(ns);
-            stageIndex = 0;
-            stageElapsed = 0.0;
+
+            if (!prepareCurrentSerial(ns)) {
+                continue;
+            }
+
+            stageElapsed += deltaSeconds;
+            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+                stageIndex++;
+                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                    concludeSerialCycle(ns);
+                    stageIndex = 0;
+                    stageElapsed = 0.0;
+                    break;
+                }
+            }
         }
     }
 
@@ -238,11 +245,11 @@ public class ElectrodeUnit01 extends UnitLogic {
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         mixPhase += 0.2;
-        viscosityCp = randomWithin(rnd, 1100.0, 0.15);
-        coatingThicknessUm = randomWithin(rnd, 87.5, 0.12);
-        ovenTempC = randomWithin(rnd, 165.0, 0.10);
-        calenderPressureMpa = randomWithin(rnd, 100.0, 0.12);
-        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 20.0;
+        viscosityCp = randomWithin(rnd, 1080.0, 0.04);
+        coatingThicknessUm = randomWithin(rnd, 88.5, 0.045);
+        ovenTempC = randomWithin(rnd, 166.0, 0.03);
+        calenderPressureMpa = randomWithin(rnd, 101.0, 0.035);
+        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 9.0;
     }
 
     private double randomWithin(ThreadLocalRandom rnd, double center, double pctSpread) {
