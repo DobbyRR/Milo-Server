@@ -240,12 +240,12 @@ public class AssemblyUnit02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        notchDimDevUm = (rnd.nextDouble() - 0.5) * 16.0;
-        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 24.0;
-        windingTensionN = 40.5 + (rnd.nextDouble() - 0.5) * 10.0;
-        weldResistanceMOhm = 1.1 + (rnd.nextDouble() - 0.5) * 0.9;
-        leakRatePaS = Math.max(0.0, 0.65 + (rnd.nextDouble() - 0.5) * 0.9);
-        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.7;
+        notchDimDevUm = (rnd.nextDouble() - 0.5) * 8.0;
+        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 14.0;
+        windingTensionN = 40.5 + (rnd.nextDouble() - 0.5) * 5.0;
+        weldResistanceMOhm = 1.1 + (rnd.nextDouble() - 0.5) * 0.5;
+        leakRatePaS = Math.max(0.0, 0.6 + (rnd.nextDouble() - 0.5) * 0.5);
+        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.25;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
