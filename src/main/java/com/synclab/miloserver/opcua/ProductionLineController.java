@@ -273,24 +273,41 @@ public class ProductionLineController {
         int ngDelta = Math.max(0, totalNg - assignment.startNg);
 
         tray.serials.clear();
-        tray.serials.addAll(machine.getTraySerialsSnapshot());
+        tray.serials.addAll(machine.getTrayCompletedOkSerialsSnapshot());
         tray.rejectedSerials.clear();
         tray.rejectedSerials.addAll(machine.getTrayRejectedSerialsSnapshot());
 
-        if (stage.stageNo == STAGE_ELECTRODE && tray.serials.isEmpty()) {
-            tray.serials.addAll(generateSerials(assignment.plannedQty - ngDelta));
+        if (stage.stageNo == STAGE_TRAY_CLEAN && tray.serials.isEmpty()) {
+            int serialCount = Math.max(0, assignment.plannedQty - ngDelta);
+            tray.serials.addAll(generateSerials(serialCount));
         }
-        if (stage.stageNo >= STAGE_ELECTRODE) {
-            tray.plannedQty = tray.serials.size();
-        }
+        tray.plannedQty = tray.serials.size();
+        System.out.printf(
+                "[LineController] Stage %d completed by %s | tray=%s planned=%d serials=%d okDelta=%d ngDelta=%d%n",
+                stage.stageNo,
+                machine.getName(),
+                tray.trayId,
+                tray.plannedQty,
+                tray.serials.size(),
+                okDelta,
+                ngDelta
+        );
 
         int stageIndex = stageOrder.indexOf(stage.stageNo);
         if (stageIndex >= 0 && stageIndex < stageOrder.size() - 1) {
             int nextStageNo = stageOrder.get(stageIndex + 1);
             StageState next = stages.get(nextStageNo);
             if (next != null && tray.plannedQty > 0) {
+                System.out.printf("[LineController] Dispatch tray %s to stage %d queue size(before)=%d%n",
+                        tray.trayId,
+                        nextStageNo,
+                        next.queue.size());
                 next.queue.addLast(tray);
                 dispatchStage(nextStageNo);
+            } else if (next != null) {
+                System.out.printf("[LineController] Tray %s has no OK serials; skipping stage %d%n",
+                        tray.trayId,
+                        nextStageNo);
             }
         } else {
             finalOkTotal += okDelta;
@@ -354,11 +371,16 @@ public class ProductionLineController {
         if (stage == null) return;
         while (!stage.queue.isEmpty()) {
             boolean anyAssigned = false;
+            System.out.printf("[LineController] Dispatch stage %d queue size=%d%n", stageNo, stage.queue.size());
             for (UnitLogic machine : stage.machines) {
                 if (stage.queue.isEmpty()) break;
                 if (machineAssignments.containsKey(machine)) continue;
                 if (machine.awaitingMesAck) continue;
                 String stateName = machineStates.getOrDefault(machine, machine.state);
+                System.out.printf("[LineController]  machine=%s state=%s awaitingAck=%s%n",
+                        machine.getName(),
+                        stateName,
+                        machine.awaitingMesAck);
                 if (!"IDLE".equalsIgnoreCase(stateName)) continue;
 
                 Tray tray = stage.queue.pollFirst();
@@ -373,9 +395,14 @@ public class ProductionLineController {
     }
 
     private void assignTrayToMachine(int stageNo, UnitLogic machine, Tray tray) {
-        if (stageNo == STAGE_ELECTRODE && tray.serials.isEmpty()) {
+        if (stageNo == STAGE_TRAY_CLEAN && tray.serials.isEmpty()) {
             tray.serials.addAll(generateSerials(tray.plannedQty));
         }
+        System.out.printf("[LineController] Assign tray %s (serials=%d) to %s stage=%d%n",
+                tray.trayId,
+                tray.serials.size(),
+                machine.getName(),
+                stageNo);
         machine.assignTray(namespace, tray.trayId, tray.serials);
         if (!machine.isContinuousMode()) {
             machine.beginContinuousOrder(namespace, currentOrderNo, tray.plannedQty, machine.getDefaultPpm());

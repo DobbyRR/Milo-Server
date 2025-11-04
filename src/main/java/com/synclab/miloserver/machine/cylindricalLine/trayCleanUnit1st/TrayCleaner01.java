@@ -4,9 +4,40 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class TrayCleaner01 extends UnitLogic {
 
+    private static final double CLEANING_DURATION_SEC = 7.0;
+
     private double idlePressurePhase = 0.0;
+    private boolean cleaningActive = false;
+    private double cleaningElapsed = 0.0;
+    private int trayPlannedSlots = 0;
+    private boolean trayResultOk = true;
+    private int trayNgType = 0;
+
+    private double surfaceCleanliness = 0.0;
+    private double staticLevel = 0.0;
+    private double airPressureBar = 0.0;
+    private double transferSpeedMps = 0.0;
+    private double transferTimeSec = 0.0;
+
+    /**
+     * TrayCleaner NG Type codes (1~4)
+     * 1 - 세정 부족(표면 오염 잔류)
+     * 2 - 정전기 과다
+     * 3 - 공압 부족
+     * 4 - 트레이 손상/파손
+     */
+    private static final class NgType {
+        static final int INSUFFICIENT_CLEANING = 1;
+        static final int EXCESS_STATIC = 2;
+        static final int LOW_AIR_PRESSURE = 3;
+        static final int TRAY_DAMAGE = 4;
+
+        private NgType() {}
+    }
 
     public TrayCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
@@ -16,7 +47,7 @@ public class TrayCleaner01 extends UnitLogic {
         this.equipmentId = "TC-01";
         this.processId = "DryClean";
         setUnitsPerCycle(36);
-        setDefaultPpm(72); // 2 trays per minute * 36 units
+        setDefaultPpm(72);
         configureEnergyProfile(0.15, 0.03, 3.0, 0.4);
 
         setupCommonTelemetry(ns);
@@ -36,7 +67,6 @@ public class TrayCleaner01 extends UnitLogic {
         telemetryNodes.put("jam_alarm", ns.addVariableNode(machineFolder, name + ".jam_alarm", false));
         telemetryNodes.put("sensor_status", ns.addVariableNode(machineFolder, name + ".sensor_status", "{}"));
         telemetryNodes.put("transfer_time", ns.addVariableNode(machineFolder, name + ".transfer_time", 0.0));
-
         telemetryNodes.put("surface_cleanliness", ns.addVariableNode(machineFolder, name + ".surface_cleanliness", 0.0));
         telemetryNodes.put("static_level", ns.addVariableNode(machineFolder, name + ".static_level", 0.0));
         telemetryNodes.put("air_pressure", ns.addVariableNode(machineFolder, name + ".air_pressure", 0.0));
@@ -51,92 +81,174 @@ public class TrayCleaner01 extends UnitLogic {
     }
 
     @Override
+    public synchronized void assignTray(MultiMachineNameSpace ns, String newTrayId, java.util.List<String> okSerials) {
+        super.assignTray(ns, newTrayId, okSerials);
+        trayPlannedSlots = getUnitsPerCycle();
+        cleaningActive = false;
+        cleaningElapsed = 0.0;
+        trayResultOk = true;
+        trayNgType = 0;
+        updateTelemetry(ns, "occupied", true);
+        updateTelemetry(ns, "tray_tag_valid", true);
+    }
+
+    @Override
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                idlePressurePhase += 0.25;
-                if (idlePressurePhase > Math.PI * 2) {
-                    idlePressurePhase -= Math.PI * 2;
-                }
-                double idlePressure = 4.8 + Math.sin(idlePressurePhase) * 0.25 + (Math.random() - 0.5) * 0.05;
-                double idleStatic = 0.02 + Math.abs(Math.sin(idlePressurePhase / 2)) * 0.02;
-                updateTelemetry(ns, "air_pressure", idlePressure);
-                updateTelemetry(ns, "static_level", idleStatic);
-                applyIdleDrift(ns);
+                simulateIdle(ns);
                 break;
-
             case "STARTING":
-                if (timeInState(2000)) {
+                if (timeInState(1500)) {
                     updateOrderStatus(ns, "RUNNING");
                     changeState(ns, "EXECUTE");
                 }
                 break;
-
             case "EXECUTE":
-                double cleanliness = 92 + (Math.random() - 0.5) * 4;
-                double staticLevel = 0.02 + Math.random() * 0.015;
-                double airPressure = 5.8 + (Math.random() - 0.5) * 0.4;
-                boolean pass = Math.random() >= 0.01; // 목표: 약 1% 불량률
-                if (!pass) {
-                    cleanliness = 74 + Math.random() * 4;
-                    staticLevel = 0.08 + Math.random() * 0.02;
-                    airPressure = 4.8 + Math.random() * 0.4;
-                }
-
-                updateTelemetry(ns,"surface_cleanliness", cleanliness);
-                updateTelemetry(ns,"static_level", staticLevel);
-                updateTelemetry(ns,"air_pressure", airPressure);
-                updateTelemetry(ns,"tray_tag_valid", true);
-                updateTelemetry(ns,"occupied", true);
-                updateTelemetry(ns,"speed", 0.25 + Math.random() * 0.1);
-                updateTelemetry(ns,"transfer_time", 5.0 + Math.random());
-                updateTelemetry(ns,"cycle_time", cycleTime = 7.0);
-                updateTelemetry(ns,"uptime", uptime += 1.0);
-                updateTelemetry(ns,"OEE", oee = 95.5);
-
-                boolean cleanOk = cleanliness >= 88;
-                boolean staticOk = staticLevel <= 0.05;
-                boolean pressureOk = airPressure >= 5.3 && airPressure <= 6.7;
-                boolean cycleOk = pass && cleanOk && staticOk && pressureOk;
-
-                applyOperatingEnergy(ns);
-                boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedUnits = getLastProducedIncrement();
-                if (producedUnits > 0) {
-                    int okUnits = cycleOk ? producedUnits : 0;
-                    int ngUnits = cycleOk ? 0 : producedUnits;
-                    updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
-                }
-                if (reachedTarget) {
-                    updateOrderStatus(ns, "COMPLETING");
-                    changeState(ns, "COMPLETING");
-                }
+                handleExecute(ns);
                 break;
-
             case "COMPLETING":
-                updateTelemetry(ns,"occupied", false);
-                updateTelemetry(ns,"tray_tag_valid", false);
-                if (timeInState(2000)) {
+                if (timeInState(1500)) {
                     onOrderCompleted(ns);
                 }
                 break;
-
             case "COMPLETE":
-                // MES 승인 대기
                 break;
-
             case "RESETTING":
                 if (!awaitingMesAck && timeInState(1000)) {
                     resetOrderState(ns);
                     changeState(ns, "IDLE");
                 }
                 break;
-
             case "STOPPING":
-                updateTelemetry(ns,"alarm_code", "STOP_01");
-                updateTelemetry(ns,"alarm_level", "INFO");
-                if (timeInState(1000)) changeState(ns, "IDLE");
+                updateTelemetry(ns, "alarm_code", "STOP_TC");
+                updateTelemetry(ns, "alarm_level", "INFO");
+                if (timeInState(1000)) {
+                    changeState(ns, "IDLE");
+                }
                 break;
         }
+    }
+
+    private void simulateIdle(MultiMachineNameSpace ns) {
+        idlePressurePhase += 0.25;
+        if (idlePressurePhase > Math.PI * 2) {
+            idlePressurePhase -= Math.PI * 2;
+        }
+        double idlePressure = 5.0 + Math.sin(idlePressurePhase) * 0.25 + (Math.random() - 0.5) * 0.05;
+        double idleStatic = 0.02 + Math.abs(Math.sin(idlePressurePhase / 2)) * 0.015;
+        updateTelemetry(ns, "air_pressure", idlePressure);
+        updateTelemetry(ns, "static_level", idleStatic);
+        updateTelemetry(ns, "occupied", false);
+        updateTelemetry(ns, "tray_tag_valid", false);
+        applyIdleDrift(ns);
+    }
+
+    private void handleExecute(MultiMachineNameSpace ns) {
+        applyOperatingEnergy(ns);
+        if (trayPlannedSlots <= 0) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
+            }
+            return;
+        }
+        if (!cleaningActive) {
+            startCleaningCycle(ns);
+            return;
+        }
+        cleaningElapsed += 1.0;
+        transferSpeedMps = 0.22 + (Math.random() - 0.5) * 0.05;
+        transferTimeSec = CLEANING_DURATION_SEC + (Math.random() - 0.5);
+        updateTelemetry(ns, "speed", transferSpeedMps);
+        updateTelemetry(ns, "transfer_time", transferTimeSec);
+
+        if (cleaningElapsed >= CLEANING_DURATION_SEC) {
+            concludeCleaning(ns);
+        }
+    }
+
+    private void startCleaningCycle(MultiMachineNameSpace ns) {
+        cleaningActive = true;
+        cleaningElapsed = 0.0;
+        sampleCleaningMetrics();
+        updateTelemetry(ns, "surface_cleanliness", surfaceCleanliness);
+        updateTelemetry(ns, "static_level", staticLevel);
+        updateTelemetry(ns, "air_pressure", airPressureBar);
+        updateTelemetry(ns, "speed", transferSpeedMps);
+        updateTelemetry(ns, "transfer_time", transferTimeSec);
+    }
+
+    private void concludeCleaning(MultiMachineNameSpace ns) {
+        cleaningActive = false;
+        evaluateTrayResult();
+
+        int okIncrement = trayResultOk ? trayPlannedSlots : 0;
+        int ngIncrement = trayResultOk ? 0 : trayPlannedSlots;
+        updateProducedQuantity(ns, producedQuantity + trayPlannedSlots);
+        updateQualityCounts(ns, okCount + okIncrement, ngCount + ngIncrement);
+
+        if (!trayResultOk && trayNgType > 0) {
+            trayNgTypeCounts[trayNgType - 1] += trayPlannedSlots;
+            lastNgType = trayNgType;
+            updateNgTelemetry(ns);
+            updateTelemetry(ns, "jam_alarm", trayNgType == NgType.TRAY_DAMAGE);
+        } else {
+            updateTelemetry(ns, "jam_alarm", false);
+        }
+
+        trayPlannedSlots = 0;
+        updateTelemetry(ns, "occupied", false);
+        updateTelemetry(ns, "tray_tag_valid", false);
+        changeState(ns, "IDLE");
+    }
+
+    private void sampleCleaningMetrics() {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        surfaceCleanliness = 92.0 + (rnd.nextDouble() - 0.5) * 5.0;
+        staticLevel = 0.02 + Math.abs(rnd.nextGaussian()) * 0.02;
+        airPressureBar = 5.6 + (rnd.nextDouble() - 0.5) * 0.5;
+        transferSpeedMps = 0.23 + (rnd.nextDouble() - 0.5) * 0.06;
+        transferTimeSec = CLEANING_DURATION_SEC + (rnd.nextDouble() - 0.5);
+    }
+
+    private void evaluateTrayResult() {
+        trayResultOk = true;
+        trayNgType = 0;
+
+        boolean cleanlinessOk = surfaceCleanliness >= 88.0;
+        boolean staticOk = staticLevel <= 0.05;
+        boolean airPressureOk = airPressureBar >= 5.3 && airPressureBar <= 6.7;
+        boolean trayDamage = ThreadLocalRandom.current().nextDouble() > 0.995;
+
+        if (!cleanlinessOk) {
+            trayResultOk = false;
+            trayNgType = NgType.INSUFFICIENT_CLEANING;
+        } else if (!staticOk) {
+            trayResultOk = false;
+            trayNgType = NgType.EXCESS_STATIC;
+        } else if (!airPressureOk) {
+            trayResultOk = false;
+            trayNgType = NgType.LOW_AIR_PRESSURE;
+        } else if (trayDamage) {
+            trayResultOk = false;
+            trayNgType = NgType.TRAY_DAMAGE;
+        }
+    }
+
+    @Override
+    protected void resetOrderState(MultiMachineNameSpace ns) {
+        super.resetOrderState(ns);
+        cleaningActive = false;
+        cleaningElapsed = 0.0;
+        trayPlannedSlots = 0;
+        trayResultOk = true;
+        trayNgType = 0;
+        updateTelemetry(ns, "occupied", false);
+        updateTelemetry(ns, "tray_tag_valid", false);
+        updateTelemetry(ns, "speed", 0.0);
+        updateTelemetry(ns, "transfer_time", 0.0);
+        updateTelemetry(ns, "surface_cleanliness", 0.0);
+        updateTelemetry(ns, "static_level", 0.0);
+        updateTelemetry(ns, "air_pressure", 0.0);
     }
 }

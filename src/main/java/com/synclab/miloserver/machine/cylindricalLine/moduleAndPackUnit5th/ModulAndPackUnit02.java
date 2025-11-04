@@ -4,9 +4,42 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class ModulAndPackUnit02 extends UnitLogic {
 
-    private double alignmentPhase = Math.PI / 3;
+    private static final double[] STAGE_DURATIONS_SEC = {3.0, 3.0, 3.0, 3.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
+
+    private int stageIndex = 0;
+    private double stageElapsed = 0.0;
+    private double cycleElapsed = 0.0;
+    private double totalElapsedSeconds = 0.0;
+    private int processedSerialCount = 0;
+    private boolean currentSerialOkFlag = true;
+    private int currentNgType = 0;
+
+    private double cellAlignmentMm = 0.0;
+    private double moduleResistanceMOhm = 0.0;
+    private boolean bmsHealthy = true;
+    private double weldResistanceMOhm = 0.0;
+    private double torqueNm = 0.0;
+
+    /**
+     * Module & Pack NG Type codes (1~4)
+     * 1 - 셀 정렬 불량
+     * 2 - 모듈 저항 불량
+     * 3 - 용접 저항 불량
+     * 4 - 체결 토크 불량
+     */
+    private static final class NgType {
+        static final int CELL_ALIGNMENT = 1;
+        static final int MODULE_RESISTANCE = 2;
+        static final int WELD_RESISTANCE = 3;
+        static final int TORQUE_OUT_OF_SPEC = 4;
+
+        private NgType() {}
+    }
 
     public ModulAndPackUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
@@ -30,6 +63,14 @@ public class ModulAndPackUnit02 extends UnitLogic {
         telemetryNodes.put("bms_status", ns.addVariableNode(machineFolder, name + ".bms_status", "IDLE"));
         telemetryNodes.put("weld_resistance", ns.addVariableNode(machineFolder, name + ".weld_resistance", 0.0));
         telemetryNodes.put("torque_result", ns.addVariableNode(machineFolder, name + ".torque_result", 0.0));
+        telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
+        telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
+        telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
+        telemetryNodes.put("cycle_time_sec", ns.addVariableNode(machineFolder, name + ".cycle_time_sec", TOTAL_CYCLE_TIME_SEC));
+        telemetryNodes.put("t_in_cycle_sec", ns.addVariableNode(machineFolder, name + ".t_in_cycle_sec", 0.0));
+        telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
+        telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
+        telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
     }
 
     @Override
@@ -43,71 +84,31 @@ public class ModulAndPackUnit02 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                alignmentPhase += 0.042;
-                updateTelemetry(ns, "cell_alignment", 0.48 + Math.abs(Math.sin(alignmentPhase)) * 0.1);
-                updateTelemetry(ns, "bms_status", "IDLE");
                 applyIdleDrift(ns);
                 break;
-
             case "STARTING":
                 if (timeInState(2000)) {
                     updateOrderStatus(ns, "RUNNING");
                     changeState(ns, "EXECUTE");
                 }
                 break;
-
             case "EXECUTE":
-                alignmentPhase += 0.17;
-                double alignment = 0.12 + Math.abs(Math.sin(alignmentPhase)) * 0.05;
-                double resistance = 3.6 + (Math.random() - 0.5) * 0.2;
-                boolean bmsOk = Math.random() > 0.05;
-                double weld = 0.82 + (Math.random() - 0.5) * 0.05;
-                double torque = 5.6 + (Math.random() - 0.5) * 0.25;
-
-                updateTelemetry(ns, "cell_alignment", alignment);
-                updateTelemetry(ns, "module_resistance", resistance);
-                updateTelemetry(ns, "bms_status", bmsOk ? "OK" : "WARN");
-                updateTelemetry(ns, "weld_resistance", weld);
-                updateTelemetry(ns, "torque_result", torque);
-                updateTelemetry(ns, "uptime", uptime += 1.0);
-                applyOperatingEnergy(ns);
-
-                boolean alignmentOk = alignment <= 0.13;
-                boolean resistanceOk = resistance >= 3.4 && resistance <= 3.8;
-                boolean weldOk = weld <= 0.85;
-                boolean torqueOk = torque >= 5.3 && torque <= 5.9;
-
-                boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedUnits = getLastProducedIncrement();
-                if (producedUnits > 0) {
-                    boolean measurementOk = alignmentOk && resistanceOk && weldOk && torqueOk && bmsOk;
-                    int ngUnits = measurementOk ? 0 : Math.min(producedUnits, Math.max(1, producedUnits / 12));
-                    int okUnits = Math.max(0, producedUnits - ngUnits);
-                    updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
-                }
-                if (reachedTarget) {
-                    updateOrderStatus(ns, "COMPLETING");
-                    changeState(ns, "COMPLETING");
-                }
+                handleExecute(ns);
                 break;
-
             case "COMPLETING":
                 updateTelemetry(ns, "bms_status", "VERIFY");
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
                 break;
-
             case "COMPLETE":
                 break;
-
             case "RESETTING":
                 if (!awaitingMesAck && timeInState(1000)) {
                     resetOrderState(ns);
                     changeState(ns, "IDLE");
                 }
                 break;
-
             case "STOPPING":
                 updateTelemetry(ns, "alarm_code", "STOP_MP");
                 updateTelemetry(ns, "alarm_level", "INFO");
@@ -116,5 +117,156 @@ public class ModulAndPackUnit02 extends UnitLogic {
                 }
                 break;
         }
+    }
+
+    private void handleExecute(MultiMachineNameSpace ns) {
+        totalElapsedSeconds += 1.0;
+        cycleElapsed += 1.0;
+        applyOperatingEnergy(ns);
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
+            }
+            return;
+        }
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += 1.0;
+        if (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed = 0.0;
+            stageIndex++;
+        }
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+
+        if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+            concludeSerialCycle(ns);
+            stageIndex = 0;
+            stageElapsed = 0.0;
+            cycleElapsed = 0.0;
+        }
+    }
+
+    private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
+        if (activeSerial != null && !activeSerial.isEmpty()) {
+            return true;
+        }
+        String nextSerial = acquireNextSerial(ns);
+        if (nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", "");
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+            return false;
+        }
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        updateTelemetry(ns, "current_serial", nextSerial);
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        return true;
+    }
+
+    private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        sampleProcessMetrics();
+        updateMetricTelemetry(ns);
+
+        boolean alignmentOk = cellAlignmentMm <= 0.13;
+        boolean resistanceOk = moduleResistanceMOhm >= 3.35 && moduleResistanceMOhm <= 3.78;
+        boolean weldOk = weldResistanceMOhm <= 0.86;
+        boolean torqueOk = torqueNm >= 5.30 && torqueNm <= 5.90;
+
+        boolean serialOk = true;
+        int ngType = 0;
+        if (!alignmentOk) {
+            serialOk = false;
+            ngType = NgType.CELL_ALIGNMENT;
+        } else if (!resistanceOk) {
+            serialOk = false;
+            ngType = NgType.MODULE_RESISTANCE;
+        } else if (!weldOk) {
+            serialOk = false;
+            ngType = NgType.WELD_RESISTANCE;
+        } else if (!torqueOk || !bmsHealthy) {
+            serialOk = false;
+            ngType = NgType.TORQUE_OUT_OF_SPEC;
+        }
+
+        processedSerialCount++;
+        updateProducedQuantity(ns, producedQuantity + 1);
+
+        if (serialOk) {
+            completeActiveSerialOk(ns);
+            updateQualityCounts(ns, okCount + 1, ngCount);
+            currentSerialOkFlag = true;
+            currentNgType = 0;
+        } else {
+            completeActiveSerialNg(ns, ngType);
+            updateQualityCounts(ns, okCount, ngCount + 1);
+            currentSerialOkFlag = false;
+            currentNgType = ngType;
+        }
+
+        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
+        updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
+        updateTelemetry(ns, "ng_type", currentNgType);
+        updateProcessCountersTelemetry(ns);
+
+        String nextSerial = acquireNextSerial(ns);
+        if (!nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", nextSerial);
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+        } else {
+            updateTelemetry(ns, "current_serial", "");
+        }
+    }
+
+    private void sampleProcessMetrics() {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.09 + 0.05;
+        moduleResistanceMOhm = 3.55 + (rnd.nextDouble() - 0.5) * 0.28;
+        bmsHealthy = rnd.nextDouble() > 0.045;
+        weldResistanceMOhm = 0.80 + (rnd.nextDouble() - 0.5) * 0.08;
+        torqueNm = 5.55 + (rnd.nextDouble() - 0.5) * 0.35;
+    }
+
+    private void updateMetricTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "cell_alignment", cellAlignmentMm);
+        updateTelemetry(ns, "module_resistance", moduleResistanceMOhm);
+        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
+        updateTelemetry(ns, "weld_resistance", weldResistanceMOhm);
+        updateTelemetry(ns, "torque_result", torqueNm);
+    }
+
+    private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "processed_count", processedSerialCount);
+        updateTelemetry(ns, "good_count", okCount);
+        updateTelemetry(ns, "ng_count", ngCount);
+    }
+
+    @Override
+    protected void resetOrderState(MultiMachineNameSpace ns) {
+        super.resetOrderState(ns);
+        stageIndex = 0;
+        stageElapsed = 0.0;
+        cycleElapsed = 0.0;
+        totalElapsedSeconds = 0.0;
+        processedSerialCount = 0;
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        cellAlignmentMm = 0.0;
+        moduleResistanceMOhm = 0.0;
+        bmsHealthy = true;
+        weldResistanceMOhm = 0.0;
+        torqueNm = 0.0;
+        updateTelemetry(ns, "current_serial", "");
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        updateTelemetry(ns, "processed_count", 0);
+        updateTelemetry(ns, "good_count", 0);
+        updateTelemetry(ns, "ng_count", 0);
+        updateTelemetry(ns, "t_in_cycle_sec", 0.0);
+        updateMetricTelemetry(ns);
     }
 }

@@ -4,9 +4,43 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class AssemblyUnit01 extends UnitLogic {
 
-    private double alignmentPhase = 0.0;
+    private static final double[] STAGE_DURATIONS_SEC = {3.0, 4.0, 3.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 14.0;
+
+    private int stageIndex = 0;
+    private double stageElapsed = 0.0;
+    private double cycleElapsed = 0.0;
+    private double totalElapsedSeconds = 0.0;
+    private int processedSerialCount = 0;
+    private boolean currentSerialOkFlag = true;
+    private int currentNgType = 0;
+
+    private double notchDimDevUm = 0.0;
+    private double stackAlignDevUm = 0.0;
+    private double windingTensionN = 0.0;
+    private double weldResistanceMOhm = 0.0;
+    private double leakRatePaS = 0.0;
+    private double fillVolumeMl = 0.0;
+
+    /**
+     * Assembly NG Type codes (1~4)
+     * 1 - 노칭 치수 공차 초과
+     * 2 - 적층/권취 정렬 또는 장력 불량
+     * 3 - 탭 용접 저항 과다
+     * 4 - 봉입 누설 과다 또는 주입량 과/부족
+     */
+    private static final class NgType {
+        static final int NOTCH_DIMENSION = 1;
+        static final int STACK_OR_TENSION = 2;
+        static final int WELD_RESISTANCE = 3;
+        static final int SEAL_OR_FILL = 4;
+
+        private NgType() {}
+    }
 
     public AssemblyUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
@@ -30,6 +64,21 @@ public class AssemblyUnit01 extends UnitLogic {
         telemetryNodes.put("weld_quality", ns.addVariableNode(machineFolder, name + ".weld_quality", 0.0));
         telemetryNodes.put("leak_test_result", ns.addVariableNode(machineFolder, name + ".leak_test_result", "IDLE"));
         telemetryNodes.put("electrolyte_fill", ns.addVariableNode(machineFolder, name + ".electrolyte_fill", 0.0));
+
+        telemetryNodes.put("notch_dim_dev_um", ns.addVariableNode(machineFolder, name + ".notch_dim_dev_um", 0.0));
+        telemetryNodes.put("stack_align_dev_um", ns.addVariableNode(machineFolder, name + ".stack_align_dev_um", 0.0));
+        telemetryNodes.put("winding_tension_N", ns.addVariableNode(machineFolder, name + ".winding_tension_N", 0.0));
+        telemetryNodes.put("weld_resistance_mOhm", ns.addVariableNode(machineFolder, name + ".weld_resistance_mOhm", 0.0));
+        telemetryNodes.put("leak_rate_Pa_s", ns.addVariableNode(machineFolder, name + ".leak_rate_Pa_s", 0.0));
+        telemetryNodes.put("fill_volume_ml", ns.addVariableNode(machineFolder, name + ".fill_volume_ml", 0.0));
+        telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
+        telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
+        telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
+        telemetryNodes.put("cycle_time_sec", ns.addVariableNode(machineFolder, name + ".cycle_time_sec", TOTAL_CYCLE_TIME_SEC));
+        telemetryNodes.put("t_in_cycle_sec", ns.addVariableNode(machineFolder, name + ".t_in_cycle_sec", 0.0));
+        telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
+        telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
+        telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
     }
 
     @Override
@@ -43,72 +92,31 @@ public class AssemblyUnit01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                alignmentPhase += 0.05;
-                updateTelemetry(ns, "stack_alignment", 0.2 + Math.abs(Math.sin(alignmentPhase)) * 0.05);
-                updateTelemetry(ns, "winding_tension", 18 + (Math.random() - 0.5));
                 applyIdleDrift(ns);
                 break;
-
             case "STARTING":
                 if (timeInState(2000)) {
                     updateOrderStatus(ns, "RUNNING");
                     changeState(ns, "EXECUTE");
                 }
                 break;
-
             case "EXECUTE":
-                alignmentPhase += 0.2;
-                double alignment = 0.05 + Math.abs(Math.sin(alignmentPhase)) * 0.02;
-                double tension = 20 + (Math.random() - 0.5) * 0.5;
-                double weldQuality = 95 + (Math.random() - 0.5) * 2;
-                boolean leakPass = Math.random() > 0.02;
-                double fill = 5.0 + (Math.random() - 0.5) * 0.2;
-
-                updateTelemetry(ns, "stack_alignment", alignment);
-                updateTelemetry(ns, "winding_tension", tension);
-                updateTelemetry(ns, "weld_quality", weldQuality);
-                updateTelemetry(ns, "leak_test_result", leakPass ? "PASS" : "FAIL");
-                updateTelemetry(ns, "electrolyte_fill", fill);
-                updateTelemetry(ns, "uptime", uptime += 1.0);
-                applyOperatingEnergy(ns);
-
-                boolean alignmentOk = alignment <= 0.07;
-                boolean tensionOk = tension >= 19.5 && tension <= 20.5;
-                boolean weldOk = weldQuality >= 93;
-                boolean fillOk = fill >= 4.8 && fill <= 5.2;
-
-                boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedUnits = getLastProducedIncrement();
-                if (producedUnits > 0) {
-                    boolean measurementOk = alignmentOk && tensionOk && weldOk && leakPass && fillOk;
-                    int ngUnits = measurementOk ? 0 : Math.min(producedUnits, Math.max(1, producedUnits / 12));
-                    int okUnits = Math.max(0, producedUnits - ngUnits);
-                    updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
-                }
-                if (reachedTarget) {
-                    updateOrderStatus(ns, "COMPLETING");
-                    changeState(ns, "COMPLETING");
-                }
+                handleExecute(ns);
                 break;
-
             case "COMPLETING":
                 updateTelemetry(ns, "leak_test_result", "VERIFY");
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
                 break;
-
             case "COMPLETE":
-                // MES 승인 대기
                 break;
-
             case "RESETTING":
                 if (!awaitingMesAck && timeInState(1000)) {
                     resetOrderState(ns);
                     changeState(ns, "IDLE");
                 }
                 break;
-
             case "STOPPING":
                 updateTelemetry(ns, "alarm_code", "STOP_AU");
                 updateTelemetry(ns, "alarm_level", "INFO");
@@ -117,5 +125,165 @@ public class AssemblyUnit01 extends UnitLogic {
                 }
                 break;
         }
+    }
+
+    private void handleExecute(MultiMachineNameSpace ns) {
+        totalElapsedSeconds += 1.0;
+        cycleElapsed += 1.0;
+        applyOperatingEnergy(ns);
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
+            }
+            return;
+        }
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += 1.0;
+        if (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed = 0.0;
+            stageIndex++;
+        }
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+
+        if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+            concludeSerialCycle(ns);
+            stageIndex = 0;
+            stageElapsed = 0.0;
+            cycleElapsed = 0.0;
+        }
+    }
+
+    private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
+        if (activeSerial != null && !activeSerial.isEmpty()) {
+            return true;
+        }
+        String nextSerial = acquireNextSerial(ns);
+        if (nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", "");
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+            return false;
+        }
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        updateTelemetry(ns, "current_serial", nextSerial);
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        return true;
+    }
+
+    private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        sampleProcessMetrics();
+        updateMetricTelemetry(ns);
+
+        boolean notchOk = Math.abs(notchDimDevUm) <= 12.0;
+        boolean stackOk = Math.abs(stackAlignDevUm) <= 20.0;
+        boolean tensionOk = windingTensionN >= 35.0 && windingTensionN <= 45.0;
+        boolean weldOk = weldResistanceMOhm <= 1.5;
+        boolean sealOk = leakRatePaS <= 1.0;
+        boolean fillOk = fillVolumeMl >= 4.8 && fillVolumeMl <= 5.2;
+
+        boolean serialOk = true;
+        int ngType = 0;
+        if (!notchOk) {
+            serialOk = false;
+            ngType = NgType.NOTCH_DIMENSION;
+        } else if (!stackOk || !tensionOk) {
+            serialOk = false;
+            ngType = NgType.STACK_OR_TENSION;
+        } else if (!weldOk) {
+            serialOk = false;
+            ngType = NgType.WELD_RESISTANCE;
+        } else if (!sealOk || !fillOk) {
+            serialOk = false;
+            ngType = NgType.SEAL_OR_FILL;
+        }
+
+        processedSerialCount++;
+        updateProducedQuantity(ns, producedQuantity + 1);
+
+        if (serialOk) {
+            completeActiveSerialOk(ns);
+            updateQualityCounts(ns, okCount + 1, ngCount);
+            currentSerialOkFlag = true;
+            currentNgType = 0;
+            updateTelemetry(ns, "leak_test_result", "PASS");
+        } else {
+            completeActiveSerialNg(ns, ngType);
+            updateQualityCounts(ns, okCount, ngCount + 1);
+            currentSerialOkFlag = false;
+            currentNgType = ngType;
+            updateTelemetry(ns, "leak_test_result", "FAIL");
+        }
+
+        updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
+        updateTelemetry(ns, "ng_type", currentNgType);
+        updateProcessCountersTelemetry(ns);
+
+        String nextSerial = acquireNextSerial(ns);
+        if (!nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", nextSerial);
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+        } else {
+            updateTelemetry(ns, "current_serial", "");
+        }
+    }
+
+    private void sampleProcessMetrics() {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        notchDimDevUm = (rnd.nextDouble() - 0.5) * 18.0; // ±9 μm baseline
+        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 28.0;
+        windingTensionN = 40.0 + (rnd.nextDouble() - 0.5) * 14.0;
+        weldResistanceMOhm = 1.0 + (rnd.nextDouble() - 0.5) * 0.8;
+        leakRatePaS = Math.max(0.0, 0.6 + (rnd.nextDouble() - 0.5) * 0.8);
+        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.8;
+    }
+
+    private void updateMetricTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "notch_dim_dev_um", notchDimDevUm);
+        updateTelemetry(ns, "stack_align_dev_um", stackAlignDevUm);
+        updateTelemetry(ns, "winding_tension_N", windingTensionN);
+        updateTelemetry(ns, "weld_resistance_mOhm", weldResistanceMOhm);
+        updateTelemetry(ns, "leak_rate_Pa_s", leakRatePaS);
+        updateTelemetry(ns, "fill_volume_ml", fillVolumeMl);
+        updateTelemetry(ns, "stack_alignment", Math.abs(stackAlignDevUm));
+        updateTelemetry(ns, "winding_tension", windingTensionN);
+        updateTelemetry(ns, "weld_quality", 100.0 - weldResistanceMOhm);
+        updateTelemetry(ns, "electrolyte_fill", fillVolumeMl);
+    }
+
+    private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "processed_count", processedSerialCount);
+        updateTelemetry(ns, "good_count", okCount);
+        updateTelemetry(ns, "ng_count", ngCount);
+    }
+
+    @Override
+    protected void resetOrderState(MultiMachineNameSpace ns) {
+        super.resetOrderState(ns);
+        stageIndex = 0;
+        stageElapsed = 0.0;
+        cycleElapsed = 0.0;
+        totalElapsedSeconds = 0.0;
+        processedSerialCount = 0;
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        updateTelemetry(ns, "current_serial", "");
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        updateTelemetry(ns, "processed_count", 0);
+        updateTelemetry(ns, "good_count", 0);
+        updateTelemetry(ns, "ng_count", 0);
+        updateTelemetry(ns, "t_in_cycle_sec", 0.0);
+        updateTelemetry(ns, "notch_dim_dev_um", 0.0);
+        updateTelemetry(ns, "stack_align_dev_um", 0.0);
+        updateTelemetry(ns, "winding_tension_N", 0.0);
+        updateTelemetry(ns, "weld_resistance_mOhm", 0.0);
+        updateTelemetry(ns, "leak_rate_Pa_s", 0.0);
+        updateTelemetry(ns, "fill_volume_ml", 0.0);
     }
 }

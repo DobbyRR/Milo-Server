@@ -7,7 +7,10 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +36,11 @@ public abstract class UnitLogic {
     protected String trayId = "";
     protected final List<String> traySerials = new ArrayList<>();
     protected final List<String> trayRejectedSerials = new ArrayList<>();
+    protected final Deque<String> trayPendingSerials = new ArrayDeque<>();
+    protected final List<String> trayCompletedOkSerials = new ArrayList<>();
+    protected String activeSerial = "";
+    protected final int[] trayNgTypeCounts = new int[4];
+    protected int lastNgType = 0;
 
     protected int targetQuantity = 0;
     protected int producedQuantity = 0;
@@ -109,8 +117,17 @@ public abstract class UnitLogic {
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
         telemetryNodes.put("tray_serials", ns.addVariableNode(machineFolder, name + ".tray_serials", ""));
         telemetryNodes.put("tray_ng_serials", ns.addVariableNode(machineFolder, name + ".tray_ng_serials", ""));
+        telemetryNodes.put("tray_completed_ok_serials", ns.addVariableNode(machineFolder, name + ".tray_completed_ok_serials", ""));
+        telemetryNodes.put("tray_completed_ng_serials", ns.addVariableNode(machineFolder, name + ".tray_completed_ng_serials", ""));
+        telemetryNodes.put("tray_active_serial", ns.addVariableNode(machineFolder, name + ".tray_active_serial", ""));
+        telemetryNodes.put("tray_pending_count", ns.addVariableNode(machineFolder, name + ".tray_pending_count", 0));
         telemetryNodes.put("tray_ok_count", ns.addVariableNode(machineFolder, name + ".tray_ok_count", 0));
         telemetryNodes.put("tray_ng_count", ns.addVariableNode(machineFolder, name + ".tray_ng_count", 0));
+        telemetryNodes.put("order_ng_type", ns.addVariableNode(machineFolder, name + ".order_ng_type", 0));
+        telemetryNodes.put("order_ng_type1_qty", ns.addVariableNode(machineFolder, name + ".order_ng_type1_qty", 0));
+        telemetryNodes.put("order_ng_type2_qty", ns.addVariableNode(machineFolder, name + ".order_ng_type2_qty", 0));
+        telemetryNodes.put("order_ng_type3_qty", ns.addVariableNode(machineFolder, name + ".order_ng_type3_qty", 0));
+        telemetryNodes.put("order_ng_type4_qty", ns.addVariableNode(machineFolder, name + ".order_ng_type4_qty", 0));
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
         telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder, name + ".order_target_qty", targetQuantity));
         telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
@@ -163,10 +180,15 @@ public abstract class UnitLogic {
     }
 
     protected void updateTrayTelemetry(MultiMachineNameSpace ns) {
+        refreshPendingSerialsView();
         updateTelemetry(ns, "tray_id", trayId);
         updateTelemetry(ns, "tray_serials", serializeSerials(traySerials));
         updateTelemetry(ns, "tray_ng_serials", serializeSerials(trayRejectedSerials));
-        updateTelemetry(ns, "tray_ok_count", traySerials.size());
+        updateTelemetry(ns, "tray_completed_ok_serials", serializeSerials(trayCompletedOkSerials));
+        updateTelemetry(ns, "tray_completed_ng_serials", serializeSerials(trayRejectedSerials));
+        updateTelemetry(ns, "tray_active_serial", activeSerial);
+        updateTelemetry(ns, "tray_pending_count", traySerials.size());
+        updateTelemetry(ns, "tray_ok_count", trayCompletedOkSerials.size());
         updateTelemetry(ns, "tray_ng_count", trayRejectedSerials.size());
     }
 
@@ -178,24 +200,82 @@ public abstract class UnitLogic {
         trayId = "";
         traySerials.clear();
         trayRejectedSerials.clear();
+        trayPendingSerials.clear();
+        trayCompletedOkSerials.clear();
+        activeSerial = "";
+        Arrays.fill(trayNgTypeCounts, 0);
+        lastNgType = 0;
         updateTrayTelemetry(ns);
+        updateNgTelemetry(ns);
     }
 
     public synchronized void assignTray(MultiMachineNameSpace ns, String newTrayId, List<String> okSerials) {
         this.trayId = newTrayId != null ? newTrayId : "";
         traySerials.clear();
         trayRejectedSerials.clear();
+        trayPendingSerials.clear();
+        trayCompletedOkSerials.clear();
+        activeSerial = "";
+        Arrays.fill(trayNgTypeCounts, 0);
+        lastNgType = 0;
         if (okSerials != null) {
-            traySerials.addAll(okSerials);
+            trayPendingSerials.addAll(okSerials);
         }
+        refreshPendingSerialsView();
+        updateTrayTelemetry(ns);
+        updateNgTelemetry(ns);
+    }
+
+    public synchronized String acquireNextSerial(MultiMachineNameSpace ns) {
+        if (activeSerial != null && !activeSerial.isEmpty()) {
+            return activeSerial;
+        }
+        if (trayPendingSerials.isEmpty()) {
+            return "";
+        }
+        activeSerial = trayPendingSerials.pollFirst();
+        refreshPendingSerialsView();
+        updateTrayTelemetry(ns);
+        return activeSerial;
+    }
+
+    public synchronized void completeActiveSerialOk(MultiMachineNameSpace ns) {
+        if (activeSerial == null || activeSerial.isEmpty()) {
+            return;
+        }
+        trayCompletedOkSerials.add(activeSerial);
+        activeSerial = "";
         updateTrayTelemetry(ns);
     }
 
+    public synchronized void completeActiveSerialNg(MultiMachineNameSpace ns, int ngType) {
+        if (activeSerial == null || activeSerial.isEmpty()) {
+            return;
+        }
+        trayRejectedSerials.add(activeSerial);
+        trayCompletedOkSerials.remove(activeSerial);
+        if (ngType >= 1 && ngType <= trayNgTypeCounts.length) {
+            trayNgTypeCounts[ngType - 1]++;
+            lastNgType = ngType;
+        }
+        activeSerial = "";
+        updateTrayTelemetry(ns);
+        updateNgTelemetry(ns);
+    }
+
+    public synchronized boolean hasMoreSerials() {
+        return !trayPendingSerials.isEmpty() || (activeSerial != null && !activeSerial.isEmpty());
+    }
+
+    public synchronized boolean isTrayProcessingComplete() {
+        return trayPendingSerials.isEmpty() && (activeSerial == null || activeSerial.isEmpty());
+    }
+
     public synchronized void markTraySerials(MultiMachineNameSpace ns, List<String> okSerials, List<String> ngSerials) {
-        traySerials.clear();
+        trayCompletedOkSerials.clear();
         trayRejectedSerials.clear();
         if (okSerials != null) {
-            traySerials.addAll(okSerials);
+            trayCompletedOkSerials.addAll(okSerials);
         }
         if (ngSerials != null) {
             trayRejectedSerials.addAll(ngSerials);
@@ -205,18 +285,42 @@ public abstract class UnitLogic {
 
     public synchronized void rejectTraySerial(MultiMachineNameSpace ns, String serial) {
         if (serial == null || serial.isBlank()) return;
-        if (traySerials.remove(serial)) {
-            trayRejectedSerials.add(serial);
-            updateTrayTelemetry(ns);
-        }
+        trayPendingSerials.remove(serial);
+        trayRejectedSerials.add(serial);
+        refreshPendingSerialsView();
+        updateTrayTelemetry(ns);
     }
 
     public synchronized List<String> getTraySerialsSnapshot() {
+        refreshPendingSerialsView();
         return new ArrayList<>(traySerials);
+    }
+
+    public synchronized List<String> getTrayCompletedOkSerialsSnapshot() {
+        return new ArrayList<>(trayCompletedOkSerials);
     }
 
     public synchronized List<String> getTrayRejectedSerialsSnapshot() {
         return new ArrayList<>(trayRejectedSerials);
+    }
+
+    private void refreshPendingSerialsView() {
+        traySerials.clear();
+        traySerials.addAll(trayPendingSerials);
+    }
+
+    protected void updateNgTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "order_ng_type", lastNgType);
+        updateTelemetry(ns, "order_ng_type1_qty", trayNgTypeCounts[0]);
+        updateTelemetry(ns, "order_ng_type2_qty", trayNgTypeCounts[1]);
+        updateTelemetry(ns, "order_ng_type3_qty", trayNgTypeCounts[2]);
+        updateTelemetry(ns, "order_ng_type4_qty", trayNgTypeCounts[3]);
+    }
+
+    protected void resetNgTelemetry(MultiMachineNameSpace ns) {
+        lastNgType = 0;
+        Arrays.fill(trayNgTypeCounts, 0);
+        updateNgTelemetry(ns);
     }
 
     public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,
@@ -551,6 +655,7 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, producedQuantity);
         updateQualityCounts(ns, 0, 0);
+        resetNgTelemetry(ns);
         updateOrderStatus(ns, "IDLE");
         updateMesAckPending(ns, false);
         if (lineController != null) {

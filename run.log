@@ -1,0 +1,279 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :resolveMainClassName UP-TO-DATE
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.5.6)
+
+2025-11-04T12:45:41.788+09:00  INFO 99516 --- [Milo-Server] [           main] c.s.miloserver.MiloServerApplication     : Starting MiloServerApplication using Java 21.0.7 with PID 99516 (/Users/taekgonkim/Documents/Develop/Milo-Server/build/classes/java/main started by taekgonkim in /Users/taekgonkim/Documents/Develop/Milo-Server)
+2025-11-04T12:45:41.789+09:00 DEBUG 99516 --- [Milo-Server] [           main] c.s.miloserver.MiloServerApplication     : Running with Spring Boot v3.5.6, Spring v6.2.11
+2025-11-04T12:45:41.789+09:00  INFO 99516 --- [Milo-Server] [           main] c.s.miloserver.MiloServerApplication     : No active profile set, falling back to 1 default profile: "default"
+2025-11-04T12:45:42.124+09:00  INFO 99516 --- [Milo-Server] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2025-11-04T12:45:42.130+09:00  INFO 99516 --- [Milo-Server] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-04T12:45:42.130+09:00  INFO 99516 --- [Milo-Server] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.46]
+2025-11-04T12:45:42.152+09:00  INFO 99516 --- [Milo-Server] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-04T12:45:42.152+09:00  INFO 99516 --- [Milo-Server] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 343 ms
+2025-11-04T12:45:42.283+09:00  INFO 99516 --- [Milo-Server] [           main] o.e.milo.opcua.sdk.server.OpcUaServer    : Java version: 21.0.7
+2025-11-04T12:45:42.283+09:00  INFO 99516 --- [Milo-Server] [           main] o.e.milo.opcua.sdk.server.OpcUaServer    : Eclipse Milo OPC UA Stack version: 0.6.12
+2025-11-04T12:45:42.284+09:00  INFO 99516 --- [Milo-Server] [           main] o.e.milo.opcua.sdk.server.OpcUaServer    : Eclipse Milo OPC UA Server SDK version: 0.6.12
+2025-11-04T12:45:42.401+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=426, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=420, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=12190, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=435, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=12193, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=629, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=671, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=662, serverIndex=0} at /milo
+2025-11-04T12:45:42.402+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=698, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=710, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=749, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=761, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=779, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=767, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=773, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=486, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=498, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=492, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=504, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=459, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=465, serverIndex=0} at /milo
+2025-11-04T12:45:42.403+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=471, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=477, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=785, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=791, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=845, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=839, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=797, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=824, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=830, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=525, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=531, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=552, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=558, serverIndex=0} at /milo
+2025-11-04T12:45:42.404+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.opcua.stack.server.UaStackServer   : Adding ServiceHandler for ExpandedNodeId{ns=http://opcfoundation.org/UA/, id=564, serverIndex=0} at /milo
+2025-11-04T12:45:42.448+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.api.AddressSpaceManager      : registered org.eclipse.milo.opcua.sdk.server.namespaces.OpcUaNamespace@7ac5b4c
+2025-11-04T12:45:43.889+09:00  INFO 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.namespaces.OpcUaNamespace    : Loaded 2004 nodes in 1440ms.
+2025-11-04T12:45:43.901+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.api.AddressSpaceManager      : registered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace@4a9b3956
+2025-11-04T12:45:43.901+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.namespaces.ServerNamespace   : registered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace$DiagnosticsFragment@4217bce6
+2025-11-04T12:45:43.901+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.d.o.ServerDiagnosticsObject  : ServerDiagnosticsNode onStartup()
+2025-11-04T12:45:43.905+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.namespaces.ServerNamespace   : registered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace$VendorServerInfoFragment@64440065
+2025-11-04T12:45:43.911+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.api.AddressSpaceManager      : registered com.synclab.miloserver.opcua.MultiMachineNameSpace@64c25a62
+2025-11-04T12:45:44.012+09:00  WARN 99516 --- [Milo-Server] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2025-11-04T12:45:44.012+09:00  WARN 99516 --- [Milo-Server] [           main] o.s.b.f.support.DisposableBeanAdapter    : Custom destroy method 'shutdown' on bean with name 'multiMachineNameSpace' propagated an exception: java.lang.IllegalStateException: Cannot call shutdown, never started.
+2025-11-04T12:45:44.012+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.api.AddressSpaceManager      : unregistered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace@4a9b3956
+2025-11-04T12:45:44.012+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.namespaces.ServerNamespace   : unregistered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace$DiagnosticsFragment@4217bce6
+2025-11-04T12:45:44.013+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.d.o.ServerDiagnosticsObject  : ServerDiagnosticsNode onShutdown()
+2025-11-04T12:45:44.013+09:00 DEBUG 99516 --- [Milo-Server] [           main] s.s.d.o.SessionsDiagnosticsSummaryObject : SessionsDiagnosticsSummaryObject onShutdown()
+2025-11-04T12:45:44.014+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.namespaces.ServerNamespace   : unregistered org.eclipse.milo.opcua.sdk.server.namespaces.ServerNamespace$VendorServerInfoFragment@64440065
+2025-11-04T12:45:44.014+09:00 DEBUG 99516 --- [Milo-Server] [           main] o.e.m.o.s.s.api.AddressSpaceManager      : unregistered org.eclipse.milo.opcua.sdk.server.namespaces.OpcUaNamespace@7ac5b4c
+2025-11-04T12:45:44.014+09:00  WARN 99516 --- [Milo-Server] [           main] o.s.b.f.support.DisposableBeanAdapter    : Custom destroy method 'shutdown' on bean with name 'opcUaServer' propagated an exception: java.lang.IllegalStateException: Cannot call shutdown, never started.
+2025-11-04T12:45:44.019+09:00  INFO 99516 --- [Milo-Server] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-11-04T12:45:44.025+09:00 ERROR 99516 --- [Milo-Server] [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+
+> Task :bootRun FAILED
+
+[Incubating] Problems report is available at: file:///Users/taekgonkim/Documents/Develop/Milo-Server/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':bootRun'.
+> Process 'command '/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home/bin/java'' finished with non-zero exit value 1
+
+* Try:
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+* Exception is:
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':bootRun'.
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:130)
+	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:293)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:128)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
+	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
+	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
+	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
+	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
+	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
+	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
+	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
+	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
+	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+Caused by: org.gradle.process.internal.ExecException: Process 'command '/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home/bin/java'' finished with non-zero exit value 1
+	at org.gradle.process.internal.DefaultExecHandle$ExecResultImpl.assertNormalExitValue(DefaultExecHandle.java:442)
+	at org.gradle.process.internal.DefaultJavaExecAction.execute(DefaultJavaExecAction.java:58)
+	at org.gradle.api.tasks.JavaExec.exec(JavaExec.java:166)
+	at org.springframework.boot.gradle.tasks.run.BootRun.exec(BootRun.java:75)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:125)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.doExecute(StandardTaskAction.java:58)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:51)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:29)
+	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:244)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:30)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:27)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:48)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:229)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:212)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:195)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:162)
+	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
+	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
+	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
+	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
+	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
+	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
+	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
+	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
+	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:50)
+	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:28)
+	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
+	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
+	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:61)
+	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:26)
+	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
+	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
+	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
+	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
+	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
+	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:75)
+	at org.gradle.internal.Either$Right.fold(Either.java:175)
+	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
+	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:73)
+	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:48)
+	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:46)
+	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:35)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
+	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:49)
+	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:27)
+	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:71)
+	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:39)
+	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
+	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
+	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:107)
+	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:56)
+	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:64)
+	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:43)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.executeWithNonEmptySources(AbstractSkipEmptyWorkStep.java:125)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:56)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:36)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
+	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
+	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
+	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:75)
+	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:41)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$execute$0(AssignMutableWorkspaceStep.java:35)
+	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:289)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:31)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:22)
+	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
+	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
+	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
+	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
+	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:48)
+	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:35)
+	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:64)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:127)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
+	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:41)
+	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
+	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
+	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
+	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
+	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
+	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
+	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
+	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 3s
+4 actionable tasks: 1 executed, 3 up-to-date

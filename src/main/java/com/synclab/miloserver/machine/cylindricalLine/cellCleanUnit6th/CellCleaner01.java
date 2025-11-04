@@ -4,9 +4,42 @@ import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class CellCleaner01 extends UnitLogic {
 
-    private double moisturePhase = 0.0;
+    private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 8.0;
+
+    private int stageIndex = 0;
+    private double stageElapsed = 0.0;
+    private double cycleElapsed = 0.0;
+    private double totalElapsedSeconds = 0.0;
+    private int processedSerialCount = 0;
+    private boolean currentSerialOkFlag = true;
+    private int currentNgType = 0;
+
+    private double ultrasonicPowerW = 0.0;
+    private double residualMoisturePpm = 0.0;
+    private boolean surfaceDefectDetected = false;
+    private double dryingTemperatureC = 0.0;
+    private double cleanlinessScore = 0.0;
+
+    /**
+     * Cell Cleaner NG Type codes (1~4)
+     * 1 - 잔류 수분 과다
+     * 2 - 초음파 출력 부족
+     * 3 - 표면 결함 검출
+     * 4 - 건조 온도 이상
+     */
+    private static final class NgType {
+        static final int RESIDUAL_MOISTURE = 1;
+        static final int ULTRASONIC_POWER = 2;
+        static final int SURFACE_DEFECT = 3;
+        static final int DRYING_TEMPERATURE = 4;
+
+        private NgType() {}
+    }
 
     public CellCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
@@ -30,6 +63,14 @@ public class CellCleaner01 extends UnitLogic {
         telemetryNodes.put("surface_defects", ns.addVariableNode(machineFolder, name + ".surface_defects", 0));
         telemetryNodes.put("drying_temperature", ns.addVariableNode(machineFolder, name + ".drying_temperature", 0.0));
         telemetryNodes.put("cleanliness_score", ns.addVariableNode(machineFolder, name + ".cleanliness_score", 0.0));
+        telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
+        telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
+        telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
+        telemetryNodes.put("cycle_time_sec", ns.addVariableNode(machineFolder, name + ".cycle_time_sec", TOTAL_CYCLE_TIME_SEC));
+        telemetryNodes.put("t_in_cycle_sec", ns.addVariableNode(machineFolder, name + ".t_in_cycle_sec", 0.0));
+        telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
+        telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
+        telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
     }
 
     @Override
@@ -43,72 +84,30 @@ public class CellCleaner01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                moisturePhase += 0.05;
-                updateTelemetry(ns, "residual_moisture", 8 + Math.abs(Math.sin(moisturePhase)) * 2);
-                updateTelemetry(ns, "drying_temperature", 40 + (Math.random() - 0.5) * 1.5);
                 applyIdleDrift(ns);
                 break;
-
             case "STARTING":
                 if (timeInState(2000)) {
                     updateOrderStatus(ns, "RUNNING");
                     changeState(ns, "EXECUTE");
                 }
                 break;
-
             case "EXECUTE":
-                moisturePhase += 0.2;
-                double power = 120 + (Math.random() - 0.5) * 5;
-                double residualMoisture = Math.max(0.5, 5 + Math.sin(moisturePhase) * 2);
-                boolean defectDetected = Math.random() > 0.95;
-                double dryingTemp = 55 + (Math.random() - 0.5) * 2;
-                double cleanlinessScore = 90 + (Math.random() - 0.5) * 5;
-
-                updateTelemetry(ns, "ultrasonic_power", power);
-                updateTelemetry(ns, "residual_moisture", residualMoisture);
-                updateTelemetry(ns, "surface_defects", defectDetected ? 1 : 0);
-                updateTelemetry(ns, "drying_temperature", dryingTemp);
-                updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
-                updateTelemetry(ns, "uptime", uptime += 1.0);
-                applyOperatingEnergy(ns);
-
-                boolean powerOk = power >= 115 && power <= 125;
-                boolean moistureOk = residualMoisture <= 3.0;
-                boolean tempOk = dryingTemp >= 53 && dryingTemp <= 57;
-                boolean cleanlinessOk = cleanlinessScore >= 88;
-
-                boolean reachedTarget = accumulateProduction(ns, 1.0);
-                int producedUnits = getLastProducedIncrement();
-                if (producedUnits > 0) {
-                    boolean measurementOk = powerOk && moistureOk && tempOk && cleanlinessOk && !defectDetected;
-                    int ngUnits = measurementOk ? 0 : Math.min(producedUnits, Math.max(1, producedUnits / 12));
-                    int okUnits = Math.max(0, producedUnits - ngUnits);
-                    updateQualityCounts(ns, okCount + okUnits, ngCount + ngUnits);
-                }
-                if (reachedTarget) {
-                    updateOrderStatus(ns, "COMPLETING");
-                    changeState(ns, "COMPLETING");
-                }
+                handleExecute(ns);
                 break;
-
             case "COMPLETING":
-                updateTelemetry(ns, "ultrasonic_power", 0.0);
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
                 break;
-
             case "COMPLETE":
-                // MES 승인 대기
                 break;
-
             case "RESETTING":
                 if (!awaitingMesAck && timeInState(1000)) {
                     resetOrderState(ns);
                     changeState(ns, "IDLE");
                 }
                 break;
-
             case "STOPPING":
                 updateTelemetry(ns, "alarm_code", "STOP_CC");
                 updateTelemetry(ns, "alarm_level", "INFO");
@@ -117,5 +116,156 @@ public class CellCleaner01 extends UnitLogic {
                 }
                 break;
         }
+    }
+
+    private void handleExecute(MultiMachineNameSpace ns) {
+        totalElapsedSeconds += 1.0;
+        cycleElapsed += 1.0;
+        applyOperatingEnergy(ns);
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
+            }
+            return;
+        }
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += 1.0;
+        if (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed = 0.0;
+            stageIndex++;
+        }
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+
+        if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+            concludeSerialCycle(ns);
+            stageIndex = 0;
+            stageElapsed = 0.0;
+            cycleElapsed = 0.0;
+        }
+    }
+
+    private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
+        if (activeSerial != null && !activeSerial.isEmpty()) {
+            return true;
+        }
+        String nextSerial = acquireNextSerial(ns);
+        if (nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", "");
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+            return false;
+        }
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        updateTelemetry(ns, "current_serial", nextSerial);
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        return true;
+    }
+
+    private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        sampleProcessMetrics();
+        updateMetricTelemetry(ns);
+
+        boolean powerOk = ultrasonicPowerW >= 115 && ultrasonicPowerW <= 125;
+        boolean moistureOk = residualMoisturePpm <= 3.0;
+        boolean tempOk = dryingTemperatureC >= 53.0 && dryingTemperatureC <= 57.0;
+        boolean cleanlinessOk = cleanlinessScore >= 88.0;
+
+        boolean serialOk = true;
+        int ngType = 0;
+        if (!moistureOk) {
+            serialOk = false;
+            ngType = NgType.RESIDUAL_MOISTURE;
+        } else if (!powerOk) {
+            serialOk = false;
+            ngType = NgType.ULTRASONIC_POWER;
+        } else if (surfaceDefectDetected) {
+            serialOk = false;
+            ngType = NgType.SURFACE_DEFECT;
+        } else if (!tempOk || !cleanlinessOk) {
+            serialOk = false;
+            ngType = NgType.DRYING_TEMPERATURE;
+        }
+
+        processedSerialCount++;
+        updateProducedQuantity(ns, producedQuantity + 1);
+
+        if (serialOk) {
+            completeActiveSerialOk(ns);
+            updateQualityCounts(ns, okCount + 1, ngCount);
+            currentSerialOkFlag = true;
+            currentNgType = 0;
+        } else {
+            completeActiveSerialNg(ns, ngType);
+            updateQualityCounts(ns, okCount, ngCount + 1);
+            currentSerialOkFlag = false;
+            currentNgType = ngType;
+        }
+
+        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
+        updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
+        updateTelemetry(ns, "ng_type", currentNgType);
+        updateProcessCountersTelemetry(ns);
+
+        String nextSerial = acquireNextSerial(ns);
+        if (!nextSerial.isEmpty()) {
+            updateTelemetry(ns, "current_serial", nextSerial);
+            updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "ng_type", 0);
+        } else {
+            updateTelemetry(ns, "current_serial", "");
+        }
+    }
+
+    private void sampleProcessMetrics() {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        ultrasonicPowerW = 120.0 + (rnd.nextDouble() - 0.5) * 6.0;
+        residualMoisturePpm = Math.max(0.3, 5.0 + (rnd.nextDouble() - 0.5) * 2.5);
+        surfaceDefectDetected = rnd.nextDouble() > 0.96;
+        dryingTemperatureC = 55.0 + (rnd.nextDouble() - 0.5) * 2.2;
+        cleanlinessScore = 91.0 + (rnd.nextDouble() - 0.5) * 4.5;
+    }
+
+    private void updateMetricTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "ultrasonic_power", ultrasonicPowerW);
+        updateTelemetry(ns, "residual_moisture", residualMoisturePpm);
+        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
+        updateTelemetry(ns, "drying_temperature", dryingTemperatureC);
+        updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
+    }
+
+    private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
+        updateTelemetry(ns, "processed_count", processedSerialCount);
+        updateTelemetry(ns, "good_count", okCount);
+        updateTelemetry(ns, "ng_count", ngCount);
+    }
+
+    @Override
+    protected void resetOrderState(MultiMachineNameSpace ns) {
+        super.resetOrderState(ns);
+        stageIndex = 0;
+        stageElapsed = 0.0;
+        cycleElapsed = 0.0;
+        totalElapsedSeconds = 0.0;
+        processedSerialCount = 0;
+        currentSerialOkFlag = true;
+        currentNgType = 0;
+        ultrasonicPowerW = 0.0;
+        residualMoisturePpm = 0.0;
+        surfaceDefectDetected = false;
+        dryingTemperatureC = 0.0;
+        cleanlinessScore = 0.0;
+        updateTelemetry(ns, "current_serial", "");
+        updateTelemetry(ns, "serial_ok", true);
+        updateTelemetry(ns, "ng_type", 0);
+        updateTelemetry(ns, "processed_count", 0);
+        updateTelemetry(ns, "good_count", 0);
+        updateTelemetry(ns, "ng_count", 0);
+        updateTelemetry(ns, "t_in_cycle_sec", 0.0);
+        updateMetricTelemetry(ns);
     }
 }
