@@ -6,11 +6,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ModulAndPackUnit02 extends UnitLogic {
+public class ModuleAndPackUnit01 extends UnitLogic {
 
     private static final double[] STAGE_DURATIONS_SEC = {3.0, 3.0, 3.0, 3.0};
     private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
-    private static final int SIMULATION_SPEED = 5;
+    private static final double TIME_ACCELERATION = 4.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -42,16 +42,16 @@ public class ModulAndPackUnit02 extends UnitLogic {
         private NgType() {}
     }
 
-    public ModulAndPackUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ModuleAndPackUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "MODULE_PACK";
         this.lineId = "CylindricalLine";
         this.machineNo = 5;
-        this.equipmentId = "MP-02";
+        this.equipmentId = "MP-01";
         this.processId = "ModulePack";
-        this.defaultPpm = 62;
+        this.defaultPpm = 60;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.82, 0.1, 8.2, 1.05);
+        configureEnergyProfile(0.8, 0.1, 8.0, 1.0);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -77,7 +77,7 @@ public class ModulAndPackUnit02 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[ModulAndPackUnit02] Unsupported command '%s'%n", command);
+            System.err.printf("[ModulAndPackUnit01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -122,36 +122,34 @@ public class ModulAndPackUnit02 extends UnitLogic {
 
     private void handleExecute(MultiMachineNameSpace ns) {
         applyOperatingEnergy(ns);
-        for (int step = 0; step < SIMULATION_SPEED; step++) {
-            double deltaSeconds = 1.0 / SIMULATION_SPEED;
-            totalElapsedSeconds += deltaSeconds;
-            cycleElapsed += deltaSeconds;
+        double deltaSeconds = TIME_ACCELERATION;
+        totalElapsedSeconds += deltaSeconds;
+        cycleElapsed += deltaSeconds;
 
-            if (!hasMoreSerials()) {
-                if (!"IDLE".equals(state)) {
-                    changeState(ns, "IDLE");
-                }
-                return;
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
             }
-            if (!prepareCurrentSerial(ns)) {
-                continue;
-            }
-
-            stageElapsed += deltaSeconds;
-            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
-                stageIndex++;
-                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-                    concludeSerialCycle(ns);
-                    stageIndex = 0;
-                    stageElapsed = 0.0;
-                    cycleElapsed = 0.0;
-                    break;
-                }
-            }
-
-            updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+            return;
         }
+
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += deltaSeconds;
+        while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+            stageIndex++;
+            if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                concludeSerialCycle(ns);
+                stageIndex = 0;
+                stageElapsed = 0.0;
+                break;
+            }
+        }
+
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
@@ -174,13 +172,14 @@ public class ModulAndPackUnit02 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean alignmentOk = cellAlignmentMm <= 0.13;
-        boolean resistanceOk = moduleResistanceMOhm >= 3.35 && moduleResistanceMOhm <= 3.78;
-        boolean weldOk = weldResistanceMOhm <= 0.86;
-        boolean torqueOk = torqueNm >= 5.30 && torqueNm <= 5.90;
+        boolean alignmentOk = cellAlignmentMm <= 0.12;
+        boolean resistanceOk = moduleResistanceMOhm >= 3.30 && moduleResistanceMOhm <= 3.70;
+        boolean weldOk = weldResistanceMOhm <= 0.85;
+        boolean torqueOk = torqueNm >= 5.20 && torqueNm <= 5.80;
 
         boolean serialOk = true;
         int ngType = 0;
@@ -230,11 +229,11 @@ public class ModulAndPackUnit02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.09 + 0.05;
-        moduleResistanceMOhm = 3.55 + (rnd.nextDouble() - 0.5) * 0.28;
-        bmsHealthy = rnd.nextDouble() > 0.045;
-        weldResistanceMOhm = 0.80 + (rnd.nextDouble() - 0.5) * 0.08;
-        torqueNm = 5.55 + (rnd.nextDouble() - 0.5) * 0.35;
+        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.08 + 0.04;
+        moduleResistanceMOhm = 3.50 + (rnd.nextDouble() - 0.5) * 0.30;
+        bmsHealthy = rnd.nextDouble() > 0.04;
+        weldResistanceMOhm = 0.78 + (rnd.nextDouble() - 0.5) * 0.08;
+        torqueNm = 5.50 + (rnd.nextDouble() - 0.5) * 0.40;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {

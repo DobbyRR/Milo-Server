@@ -10,8 +10,8 @@ import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspe
 import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection02;
 import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit01;
 import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit02;
-import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModulAndPackUnit01;
-import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModulAndPackUnit02;
+import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit01;
+import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit02;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
 import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 import org.eclipse.milo.opcua.sdk.core.AccessLevel;
@@ -134,8 +134,8 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         UnitLogic assemblyUnit02 = new AssemblyUnit02("AssemblyUnit02", addFolder(line01Folder, "AssemblyUnit02"), this);
         UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(line01Folder, "FormationUnit01"), this);
         UnitLogic formationUnit02 = new FormationUnit02("FormationUnit02", addFolder(line01Folder, "FormationUnit02"), this);
-        UnitLogic modulePackUnit01 = new ModulAndPackUnit01("ModuleAndPackUnit01", addFolder(line01Folder, "ModuleAndPackUnit01"), this);
-        UnitLogic modulePackUnit02 = new ModulAndPackUnit02("ModuleAndPackUnit02", addFolder(line01Folder, "ModuleAndPackUnit02"), this);
+        UnitLogic modulePackUnit01 = new ModuleAndPackUnit01("ModuleAndPackUnit01", addFolder(line01Folder, "ModuleAndPackUnit01"), this);
+        UnitLogic modulePackUnit02 = new ModuleAndPackUnit02("ModuleAndPackUnit02", addFolder(line01Folder, "ModuleAndPackUnit02"), this);
         UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(line01Folder, "CellCleaner01"), this);
         UnitLogic cellCleaner02 = new CellCleaner02("CellCleaner02", addFolder(line01Folder, "CellCleaner02"), this);
         UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(line01Folder, "FinalInspection01"), this);
