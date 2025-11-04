@@ -12,9 +12,11 @@ public class ElectrodeUnit01 extends UnitLogic {
 
     private static final double[] STAGE_DURATIONS_SEC = {2.0, 3.0, 3.0, 2.0, 2.0};
     private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
+    private static final double TIME_ACCELERATION = 5.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
+    private double cycleElapsed = 0.0;
     private double totalElapsedSeconds = 0.0;
     private int processedSerialCount = 0;
     private boolean currentSerialOkFlag = true;
@@ -75,6 +77,7 @@ public class ElectrodeUnit01 extends UnitLogic {
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
         telemetryNodes.put("cycle_time_sec", ns.addVariableNode(machineFolder, name + ".cycle_time_sec", TOTAL_CYCLE_TIME_SEC));
+        telemetryNodes.put("t_in_cycle_sec", ns.addVariableNode(machineFolder, name + ".t_in_cycle_sec", 0.0));
         telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
         telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
         telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
@@ -138,33 +141,33 @@ public class ElectrodeUnit01 extends UnitLogic {
 
     private void handleExecute(MultiMachineNameSpace ns) {
         applyOperatingEnergy(ns);
-        for (int step = 0; step < SIMULATION_SPEED; step++) {
-            double deltaSeconds = 1.0 / SIMULATION_SPEED;
-            totalElapsedSeconds += deltaSeconds;
+        double deltaSeconds = TIME_ACCELERATION;
+        totalElapsedSeconds += deltaSeconds;
+        cycleElapsed += deltaSeconds;
 
-            if (!hasMoreSerials()) {
-                if (!"IDLE".equals(state)) {
-                    changeState(ns, "IDLE");
-                }
-                return;
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
             }
+            return;
+        }
 
-            if (!prepareCurrentSerial(ns)) {
-                continue;
-            }
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
 
-            stageElapsed += deltaSeconds;
-            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
-                stageIndex++;
-                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-                    concludeSerialCycle(ns);
-                    stageIndex = 0;
-                    stageElapsed = 0.0;
-                    break;
-                }
+        stageElapsed += deltaSeconds;
+        while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+            stageIndex++;
+            if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                concludeSerialCycle(ns);
+                stageIndex = 0;
+                stageElapsed = 0.0;
+                break;
             }
         }
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
@@ -189,6 +192,7 @@ public class ElectrodeUnit01 extends UnitLogic {
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
+        cycleElapsed = 0.0;
 
         boolean viscosityOk = viscosityCp >= 900 && viscosityCp <= 1300;
         boolean thicknessOk = coatingThicknessUm >= 83 && coatingThicknessUm <= 92;
