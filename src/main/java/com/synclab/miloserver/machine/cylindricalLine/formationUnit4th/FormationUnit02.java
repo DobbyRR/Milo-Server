@@ -229,11 +229,11 @@ public class FormationUnit02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        chargeVoltage = 3.58 + (rnd.nextDouble() - 0.5) * 0.07;
-        chargeCurrent = 1.55 + (rnd.nextDouble() - 0.5) * 0.18;
-        cellTemperature = 28.5 + (rnd.nextDouble() - 0.5) * 3.2;
-        internalResistance = 1.82 + (rnd.nextDouble() - 0.5) * 0.18;
-        capacityAh = 98.0 + (rnd.nextDouble() - 0.5) * 4.8;
+        chargeVoltage = 3.58 + (rnd.nextDouble() - 0.5) * 0.04;
+        chargeCurrent = 1.55 + (rnd.nextDouble() - 0.5) * 0.10;
+        cellTemperature = 28.5 + (rnd.nextDouble() - 0.5) * 2.0;
+        internalResistance = 1.82 + (rnd.nextDouble() - 0.5) * 0.10;
+        capacityAh = 98.0 + (rnd.nextDouble() - 0.5) * 2.5;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
