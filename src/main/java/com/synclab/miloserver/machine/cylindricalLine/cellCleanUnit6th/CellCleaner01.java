@@ -228,11 +228,11 @@ public class CellCleaner01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        ultrasonicPowerW = 120.0 + (rnd.nextDouble() - 0.5) * 6.0;
-        residualMoisturePpm = Math.max(0.3, 5.0 + (rnd.nextDouble() - 0.5) * 2.5);
-        surfaceDefectDetected = rnd.nextDouble() > 0.96;
-        dryingTemperatureC = 55.0 + (rnd.nextDouble() - 0.5) * 2.2;
-        cleanlinessScore = 91.0 + (rnd.nextDouble() - 0.5) * 4.5;
+        ultrasonicPowerW = 120.5 + (rnd.nextDouble() - 0.5) * 4.0;
+        residualMoisturePpm = Math.max(0.2, 2.0 + (rnd.nextDouble() - 0.5) * 1.0);
+        surfaceDefectDetected = rnd.nextDouble() > 0.995;
+        dryingTemperatureC = 55.0 + (rnd.nextDouble() - 0.5) * 1.2;
+        cleanlinessScore = 93.0 + (rnd.nextDouble() - 0.5) * 2.0;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
