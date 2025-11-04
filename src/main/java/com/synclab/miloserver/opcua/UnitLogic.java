@@ -343,7 +343,7 @@ public abstract class UnitLogic {
         orderActive = true;
         awaitingMesAck = false;
         updateTelemetry(ns, "mes_ack_pending", awaitingMesAck);
-        updateOrderStatus(ns, "RUNNING");
+        updateOrderStatus(ns, "EXECUTE");
         startSimulation(ns);
         if (!"EXECUTE".equals(state) && !"STARTING".equals(state)) {
             changeState(ns, "STARTING");
@@ -358,7 +358,7 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         if (!orderActive) {
             orderActive = true;
-            updateOrderStatus(ns, "RUNNING");
+            updateOrderStatus(ns, "EXECUTE");
         }
         continuousMode = true;
         awaitingMesAck = false;
@@ -468,7 +468,7 @@ public abstract class UnitLogic {
         }
         targetQuantity += additionalQty;
         updateTelemetry(ns, "order_target_qty", targetQuantity);
-        updateOrderStatus(ns, "RUNNING");
+        updateOrderStatus(ns, "EXECUTE");
         if (awaitingMesAck) {
             updateMesAckPending(ns, false);
         }
@@ -621,7 +621,7 @@ public abstract class UnitLogic {
 
     protected void onOrderCompleted(MultiMachineNameSpace ns) {
         if (continuousMode) {
-            updateOrderStatus(ns, "RUNNING");
+            updateOrderStatus(ns, "EXECUTE");
             updateMesAckPending(ns, false);
             return;
         }

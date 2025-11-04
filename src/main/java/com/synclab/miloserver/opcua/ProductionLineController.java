@@ -169,6 +169,7 @@ public class ProductionLineController {
         machineStates.replaceAll((m, v) -> "IDLE");
         stages.values().forEach(StageState::clearQueue);
 
+        orderStatus = "PREPARING";
         updateLineTelemetry();
         updateNode("order_produced_qty", 0);
 
@@ -183,6 +184,8 @@ public class ProductionLineController {
         }
         dispatchStage(STAGE_TRAY_CLEAN);
         ensureUpstreamSupply();
+        orderStatus = "EXECUTE";
+        updateLineTelemetry();
     }
 
     private synchronized void acknowledge() {

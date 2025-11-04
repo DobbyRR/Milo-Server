@@ -100,7 +100,7 @@ public class TrayCleaner02 extends UnitLogic {
                 break;
             case "STARTING":
                 if (timeInState(1500)) {
-                    updateOrderStatus(ns, "RUNNING");
+                    updateOrderStatus(ns, "EXECUTE");
                     changeState(ns, "EXECUTE");
                 }
                 break;

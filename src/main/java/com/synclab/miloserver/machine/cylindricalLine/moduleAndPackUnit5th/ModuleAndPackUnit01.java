@@ -89,7 +89,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
                 break;
             case "STARTING":
                 if (timeInState(2000)) {
-                    updateOrderStatus(ns, "RUNNING");
+                    updateOrderStatus(ns, "EXECUTE");
                     changeState(ns, "EXECUTE");
                 }
                 break;
