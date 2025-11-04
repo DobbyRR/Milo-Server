@@ -10,7 +10,7 @@ public class AssemblyUnit01 extends UnitLogic {
 
     private static final double[] STAGE_DURATIONS_SEC = {3.0, 4.0, 3.0, 2.0, 2.0};
     private static final double TOTAL_CYCLE_TIME_SEC = 14.0;
-    private static final int SIMULATION_SPEED = 5;
+    private static final double TIME_ACCELERATION = 5.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -130,36 +130,34 @@ public class AssemblyUnit01 extends UnitLogic {
 
     private void handleExecute(MultiMachineNameSpace ns) {
         applyOperatingEnergy(ns);
-        for (int step = 0; step < SIMULATION_SPEED; step++) {
-            double deltaSeconds = 1.0 / SIMULATION_SPEED;
-            totalElapsedSeconds += deltaSeconds;
-            cycleElapsed += deltaSeconds;
+        double deltaSeconds = TIME_ACCELERATION;
+        totalElapsedSeconds += deltaSeconds;
+        cycleElapsed += deltaSeconds;
 
-            if (!hasMoreSerials()) {
-                if (!"IDLE".equals(state)) {
-                    changeState(ns, "IDLE");
-                }
-                return;
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
             }
-            if (!prepareCurrentSerial(ns)) {
-                continue;
-            }
-
-            stageElapsed += deltaSeconds;
-            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
-                stageIndex++;
-                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-                    concludeSerialCycle(ns);
-                    stageIndex = 0;
-                    stageElapsed = 0.0;
-                    cycleElapsed = 0.0;
-                    break;
-                }
-            }
-
-            updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+            return;
         }
+
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += deltaSeconds;
+        while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+            stageIndex++;
+            if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                concludeSerialCycle(ns);
+                stageIndex = 0;
+                stageElapsed = 0.0;
+                break;
+            }
+        }
+
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
@@ -182,6 +180,7 @@ public class AssemblyUnit01 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
