@@ -229,11 +229,11 @@ public class ModuleAndPackUnit01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.08 + 0.04;
-        moduleResistanceMOhm = 3.50 + (rnd.nextDouble() - 0.5) * 0.30;
-        bmsHealthy = rnd.nextDouble() > 0.04;
-        weldResistanceMOhm = 0.78 + (rnd.nextDouble() - 0.5) * 0.08;
-        torqueNm = 5.50 + (rnd.nextDouble() - 0.5) * 0.40;
+        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.05 + 0.03;
+        moduleResistanceMOhm = 3.50 + (rnd.nextDouble() - 0.5) * 0.16;
+        bmsHealthy = rnd.nextDouble() > 0.01;
+        weldResistanceMOhm = 0.78 + (rnd.nextDouble() - 0.5) * 0.06;
+        torqueNm = 5.50 + (rnd.nextDouble() - 0.5) * 0.24;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
