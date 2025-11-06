@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.formationUnit4th;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.formationUnit4th;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;

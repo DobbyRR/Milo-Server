@@ -1,19 +1,5 @@
 package com.synclab.miloserver.opcua;
 
-import com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd.AssemblyUnit01;
-import com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd.AssemblyUnit02;
-import com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th.CellCleaner01;
-import com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th.CellCleaner02;
-import com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd.ElectrodeUnit01;
-import com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd.ElectrodeUnit02;
-import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection01;
-import com.synclab.miloserver.machine.cylindricalLine.finalInspection.FinalInspection02;
-import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit01;
-import com.synclab.miloserver.machine.cylindricalLine.formationUnit4th.FormationUnit02;
-import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit01;
-import com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit02;
-import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
-import com.synclab.miloserver.machine.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 import org.eclipse.milo.opcua.sdk.core.AccessLevel;
 import org.eclipse.milo.opcua.sdk.core.Reference;
 import org.eclipse.milo.opcua.sdk.core.ValueRanks;
@@ -39,11 +25,26 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort;
 
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.assemblyUnit3rd.AssemblyUnit01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.assemblyUnit3rd.AssemblyUnit02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.cellCleanUnit6th.CellCleaner01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.cellCleanUnit6th.CellCleaner02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.electrodeUnit2nd.ElectrodeUnit01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.electrodeUnit2nd.ElectrodeUnit02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.finalInspection.FinalInspection01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.finalInspection.FinalInspection02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.formationUnit4th.FormationUnit01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.formationUnit4th.FormationUnit02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.moduleAndPackUnit5th.ModuleAndPackUnit02;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.trayCleanUnit1st.TrayCleaner01;
+import com.synclab.miloserver.machine.mainFactory.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,6 +57,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
     private final UaFolderNode rootFolder;
     private final List<UnitLogic> machines = new ArrayList<>();
     private final List<ProductionLineController> lineControllers = new ArrayList<>();
+    private final Map<String, ProductionLineController> lineControllersByKey = new ConcurrentHashMap<>();
     private final Map<String, UaVariableNode> commandNodes = new ConcurrentHashMap<>();
 
     private static NodeId dataTypeIdFor(Object v) {
@@ -66,6 +68,26 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         if (v instanceof String) return Identifiers.String;
         if (v instanceof DateTime) return Identifiers.DateTime;
         return Identifiers.BaseDataType;
+    }
+
+    private static String lineQualifiedName(String factoryCode, String lineCode) {
+        return factoryCode + "." + lineCode;
+    }
+
+    private void registerLineController(String factoryCode, String lineCode, ProductionLineController controller) {
+        lineControllers.add(controller);
+        lineControllersByKey.put(lineKey(factoryCode, lineCode), controller);
+    }
+
+    private static String lineKey(String factoryCode, String lineCode) {
+        return (factoryCode + ":" + lineCode).toLowerCase();
+    }
+
+    public Optional<ProductionLineController> findLineController(String factoryCode, String lineCode) {
+        if (factoryCode == null || lineCode == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(lineControllersByKey.get(lineKey(factoryCode, lineCode)));
     }
 
     public MultiMachineNameSpace(OpcUaServer server, String namespaceUri) {
@@ -122,39 +144,47 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         // 예시 변수 노드(정방향으로 부모=Machines에 달아줌)
 //        addVariableNode(rootFolder, "Factory.Status", "RUNNING");
 
-        UaFolderNode line01Folder = addFolder(rootFolder, "Line01");
-        ProductionLineController line01Controller = new ProductionLineController(this, "Line01", line01Folder);
-        lineControllers.add(line01Controller);
+        String mainFactoryCode = "F0001";
+        UaFolderNode mainFactoryFolder = addFolder(rootFolder, mainFactoryCode);
 
-        UnitLogic trayCleaner01 = new TrayCleaner01("TrayCleaner01", addFolder(line01Folder, "TrayCleaner01"), this);
-        UnitLogic trayCleaner02 = new TrayCleaner02("TrayCleaner02", addFolder(line01Folder, "TrayCleaner02"), this);
-        UnitLogic electrodeUnit01 = new ElectrodeUnit01("ElectrodeUnit01", addFolder(line01Folder, "ElectrodeUnit01"), this);
-        UnitLogic electrodeUnit02 = new ElectrodeUnit02("ElectrodeUnit02", addFolder(line01Folder, "ElectrodeUnit02"), this);
-        UnitLogic assemblyUnit01 = new AssemblyUnit01("AssemblyUnit01", addFolder(line01Folder, "AssemblyUnit01"), this);
-        UnitLogic assemblyUnit02 = new AssemblyUnit02("AssemblyUnit02", addFolder(line01Folder, "AssemblyUnit02"), this);
-        UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(line01Folder, "FormationUnit01"), this);
-        UnitLogic formationUnit02 = new FormationUnit02("FormationUnit02", addFolder(line01Folder, "FormationUnit02"), this);
-        UnitLogic modulePackUnit01 = new ModuleAndPackUnit01("ModuleAndPackUnit01", addFolder(line01Folder, "ModuleAndPackUnit01"), this);
-        UnitLogic modulePackUnit02 = new ModuleAndPackUnit02("ModuleAndPackUnit02", addFolder(line01Folder, "ModuleAndPackUnit02"), this);
-        UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(line01Folder, "CellCleaner01"), this);
-        UnitLogic cellCleaner02 = new CellCleaner02("CellCleaner02", addFolder(line01Folder, "CellCleaner02"), this);
-        UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(line01Folder, "FinalInspection01"), this);
-        UnitLogic finalInspection02 = new FinalInspection02("FinalInspection02", addFolder(line01Folder, "FinalInspection02"), this);
+        String cylindricalLineCode = "CL0001";
+        UaFolderNode cylindricalLineFolder = addFolder(mainFactoryFolder, cylindricalLineCode);
+        ProductionLineController cylindricalLineController = new ProductionLineController(
+                this,
+                lineQualifiedName(mainFactoryCode, cylindricalLineCode),
+                cylindricalLineFolder
+        );
+        registerLineController(mainFactoryCode, cylindricalLineCode, cylindricalLineController);
 
-        registerMachine(trayCleaner01, line01Controller);
-        registerMachine(trayCleaner02, line01Controller);
-        registerMachine(electrodeUnit01, line01Controller);
-        registerMachine(electrodeUnit02, line01Controller);
-        registerMachine(assemblyUnit01, line01Controller);
-        registerMachine(assemblyUnit02, line01Controller);
-        registerMachine(formationUnit01, line01Controller);
-        registerMachine(formationUnit02, line01Controller);
-        registerMachine(modulePackUnit01, line01Controller);
-        registerMachine(modulePackUnit02, line01Controller);
-        registerMachine(cellCleaner01, line01Controller);
-        registerMachine(cellCleaner02, line01Controller);
-        registerMachine(finalInspection01, line01Controller);
-        registerMachine(finalInspection02, line01Controller);
+        UnitLogic trayCleaner01 = new TrayCleaner01("TrayCleaner01", addFolder(cylindricalLineFolder, "TrayCleaner01"), this);
+        UnitLogic trayCleaner02 = new TrayCleaner02("TrayCleaner02", addFolder(cylindricalLineFolder, "TrayCleaner02"), this);
+        UnitLogic electrodeUnit01 = new ElectrodeUnit01("ElectrodeUnit01", addFolder(cylindricalLineFolder, "ElectrodeUnit01"), this);
+        UnitLogic electrodeUnit02 = new ElectrodeUnit02("ElectrodeUnit02", addFolder(cylindricalLineFolder, "ElectrodeUnit02"), this);
+        UnitLogic assemblyUnit01 = new AssemblyUnit01("AssemblyUnit01", addFolder(cylindricalLineFolder, "AssemblyUnit01"), this);
+        UnitLogic assemblyUnit02 = new AssemblyUnit02("AssemblyUnit02", addFolder(cylindricalLineFolder, "AssemblyUnit02"), this);
+        UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(cylindricalLineFolder, "FormationUnit01"), this);
+        UnitLogic formationUnit02 = new FormationUnit02("FormationUnit02", addFolder(cylindricalLineFolder, "FormationUnit02"), this);
+        UnitLogic modulePackUnit01 = new ModuleAndPackUnit01("ModuleAndPackUnit01", addFolder(cylindricalLineFolder, "ModuleAndPackUnit01"), this);
+        UnitLogic modulePackUnit02 = new ModuleAndPackUnit02("ModuleAndPackUnit02", addFolder(cylindricalLineFolder, "ModuleAndPackUnit02"), this);
+        UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(cylindricalLineFolder, "CellCleaner01"), this);
+        UnitLogic cellCleaner02 = new CellCleaner02("CellCleaner02", addFolder(cylindricalLineFolder, "CellCleaner02"), this);
+        UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(cylindricalLineFolder, "FinalInspection01"), this);
+        UnitLogic finalInspection02 = new FinalInspection02("FinalInspection02", addFolder(cylindricalLineFolder, "FinalInspection02"), this);
+
+        registerMachine(trayCleaner01, cylindricalLineController);
+        registerMachine(trayCleaner02, cylindricalLineController);
+        registerMachine(electrodeUnit01, cylindricalLineController);
+        registerMachine(electrodeUnit02, cylindricalLineController);
+        registerMachine(assemblyUnit01, cylindricalLineController);
+        registerMachine(assemblyUnit02, cylindricalLineController);
+        registerMachine(formationUnit01, cylindricalLineController);
+        registerMachine(formationUnit02, cylindricalLineController);
+        registerMachine(modulePackUnit01, cylindricalLineController);
+        registerMachine(modulePackUnit02, cylindricalLineController);
+        registerMachine(cellCleaner01, cylindricalLineController);
+        registerMachine(cellCleaner02, cylindricalLineController);
+        registerMachine(finalInspection01, cylindricalLineController);
+        registerMachine(finalInspection02, cylindricalLineController);
 
         System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");

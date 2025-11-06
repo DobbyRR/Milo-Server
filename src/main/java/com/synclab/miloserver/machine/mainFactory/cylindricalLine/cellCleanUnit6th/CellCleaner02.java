@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.cellCleanUnit6th;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,11 +6,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class AssemblyUnit02 extends UnitLogic {
+public class CellCleaner02 extends UnitLogic {
 
-    private static final double[] STAGE_DURATIONS_SEC = {3.0, 4.0, 3.0, 2.0, 2.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 14.0;
-    private static final double TIME_ACCELERATION = 5.0;
+    private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 8.0;
+    private static final double TIME_ACCELERATION = 10.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -20,39 +20,38 @@ public class AssemblyUnit02 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double notchDimDevUm = 0.0;
-    private double stackAlignDevUm = 0.0;
-    private double windingTensionN = 0.0;
-    private double weldResistanceMOhm = 0.0;
-    private double leakRatePaS = 0.0;
-    private double fillVolumeMl = 0.0;
+    private double ultrasonicPowerW = 0.0;
+    private double residualMoisturePpm = 0.0;
+    private boolean surfaceDefectDetected = false;
+    private double dryingTemperatureC = 0.0;
+    private double cleanlinessScore = 0.0;
 
     /**
-     * Assembly NG Type codes (1~4)
-     * 1 - 적층 정렬 불량
-     * 2 - 권선 장력 이상
-     * 3 - 용접 품질 불량
-     * 4 - 누액/밀봉 불량
+     * Cell Cleaner NG Type codes (1~4)
+     * 1 - 잔류 수분 과다
+     * 2 - 초음파 출력 부족
+     * 3 - 표면 결함 검출
+     * 4 - 건조 온도 이상
      */
     private static final class NgType {
-        static final int STACK_ALIGNMENT = 1;
-        static final int WINDING_TENSION = 2;
-        static final int WELD_QUALITY = 3;
-        static final int LEAK_TEST = 4;
+        static final int RESIDUAL_MOISTURE = 1;
+        static final int ULTRASONIC_POWER = 2;
+        static final int SURFACE_DEFECT = 3;
+        static final int DRYING_TEMPERATURE = 4;
 
         private NgType() {}
     }
 
-    public AssemblyUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public CellCleaner02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "ASSEMBLY";
+        this.unitType = "CELL_CLEAN";
         this.lineId = "CylindricalLine";
-        this.machineNo = 3;
-        this.equipmentId = "AU-02";
-        this.processId = "Assembly";
-        this.defaultPpm = 82;
+        this.machineNo = 6;
+        this.equipmentId = "CC-02";
+        this.processId = "CellCleaning";
+        this.defaultPpm = 56;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
+        configureEnergyProfile(0.52, 0.07, 5.2, 0.65);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -60,18 +59,11 @@ public class AssemblyUnit02 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("stack_alignment", ns.addVariableNode(machineFolder, name + ".stack_alignment", 0.0));
-        telemetryNodes.put("winding_tension", ns.addVariableNode(machineFolder, name + ".winding_tension", 0.0));
-        telemetryNodes.put("weld_quality", ns.addVariableNode(machineFolder, name + ".weld_quality", 0.0));
-        telemetryNodes.put("leak_test_result", ns.addVariableNode(machineFolder, name + ".leak_test_result", "IDLE"));
-        telemetryNodes.put("electrolyte_fill", ns.addVariableNode(machineFolder, name + ".electrolyte_fill", 0.0));
-
-        telemetryNodes.put("notch_dim_dev_um", ns.addVariableNode(machineFolder, name + ".notch_dim_dev_um", 0.0));
-        telemetryNodes.put("stack_align_dev_um", ns.addVariableNode(machineFolder, name + ".stack_align_dev_um", 0.0));
-        telemetryNodes.put("winding_tension_N", ns.addVariableNode(machineFolder, name + ".winding_tension_N", 0.0));
-        telemetryNodes.put("weld_resistance_mOhm", ns.addVariableNode(machineFolder, name + ".weld_resistance_mOhm", 0.0));
-        telemetryNodes.put("leak_rate_Pa_s", ns.addVariableNode(machineFolder, name + ".leak_rate_Pa_s", 0.0));
-        telemetryNodes.put("fill_volume_ml", ns.addVariableNode(machineFolder, name + ".fill_volume_ml", 0.0));
+        telemetryNodes.put("ultrasonic_power", ns.addVariableNode(machineFolder, name + ".ultrasonic_power", 0.0));
+        telemetryNodes.put("residual_moisture", ns.addVariableNode(machineFolder, name + ".residual_moisture", 0.0));
+        telemetryNodes.put("surface_defects", ns.addVariableNode(machineFolder, name + ".surface_defects", 0));
+        telemetryNodes.put("drying_temperature", ns.addVariableNode(machineFolder, name + ".drying_temperature", 0.0));
+        telemetryNodes.put("cleanliness_score", ns.addVariableNode(machineFolder, name + ".cleanliness_score", 0.0));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -85,7 +77,7 @@ public class AssemblyUnit02 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[AssemblyUnit02] Unsupported command '%s'%n", command);
+            System.err.printf("[CellCleaner02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -105,7 +97,6 @@ public class AssemblyUnit02 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
-                updateTelemetry(ns, "leak_test_result", "VERIFY");
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
@@ -119,7 +110,7 @@ public class AssemblyUnit02 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_AU");
+                updateTelemetry(ns, "alarm_code", "STOP_CC");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
@@ -184,27 +175,25 @@ public class AssemblyUnit02 extends UnitLogic {
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean notchOk = Math.abs(notchDimDevUm) <= 12.0;
-        boolean stackOk = Math.abs(stackAlignDevUm) <= 18.0;
-        boolean tensionOk = windingTensionN >= 36.0 && windingTensionN <= 44.0;
-        boolean weldOk = weldResistanceMOhm <= 1.6;
-        boolean leakOk = leakRatePaS <= 1.05;
-        boolean fillOk = fillVolumeMl >= 4.75 && fillVolumeMl <= 5.15;
+        boolean powerOk = ultrasonicPowerW >= 116 && ultrasonicPowerW <= 126;
+        boolean moistureOk = residualMoisturePpm <= 2.8;
+        boolean tempOk = dryingTemperatureC >= 53.0 && dryingTemperatureC <= 58.0;
+        boolean cleanlinessOk = cleanlinessScore >= 89.0;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!stackOk) {
+        if (!moistureOk) {
             serialOk = false;
-            ngType = NgType.STACK_ALIGNMENT;
-        } else if (!tensionOk) {
+            ngType = NgType.RESIDUAL_MOISTURE;
+        } else if (!powerOk) {
             serialOk = false;
-            ngType = NgType.WINDING_TENSION;
-        } else if (!weldOk) {
+            ngType = NgType.ULTRASONIC_POWER;
+        } else if (surfaceDefectDetected) {
             serialOk = false;
-            ngType = NgType.WELD_QUALITY;
-        } else if (!leakOk || !fillOk) {
+            ngType = NgType.SURFACE_DEFECT;
+        } else if (!tempOk || !cleanlinessOk) {
             serialOk = false;
-            ngType = NgType.LEAK_TEST;
+            ngType = NgType.DRYING_TEMPERATURE;
         }
 
         processedSerialCount++;
@@ -215,15 +204,14 @@ public class AssemblyUnit02 extends UnitLogic {
             updateQualityCounts(ns, okCount + 1, ngCount);
             currentSerialOkFlag = true;
             currentNgType = 0;
-            updateTelemetry(ns, "leak_test_result", "PASS");
         } else {
             completeActiveSerialNg(ns, ngType);
             updateQualityCounts(ns, okCount, ngCount + 1);
             currentSerialOkFlag = false;
             currentNgType = ngType;
-            updateTelemetry(ns, "leak_test_result", "FAIL");
         }
 
+        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
         updateTelemetry(ns, "ng_type", currentNgType);
         updateProcessCountersTelemetry(ns);
@@ -240,25 +228,19 @@ public class AssemblyUnit02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        notchDimDevUm = (rnd.nextDouble() - 0.5) * 8.0;
-        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 14.0;
-        windingTensionN = 40.5 + (rnd.nextDouble() - 0.5) * 5.0;
-        weldResistanceMOhm = 1.1 + (rnd.nextDouble() - 0.5) * 0.5;
-        leakRatePaS = Math.max(0.0, 0.6 + (rnd.nextDouble() - 0.5) * 0.5);
-        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.25;
+        ultrasonicPowerW = 121.0 + (rnd.nextDouble() - 0.5) * 4.2;
+        residualMoisturePpm = Math.max(0.2, 2.2 + (rnd.nextDouble() - 0.5) * 1.2);
+        surfaceDefectDetected = rnd.nextDouble() > 0.996;
+        dryingTemperatureC = 55.2 + (rnd.nextDouble() - 0.5) * 1.3;
+        cleanlinessScore = 93.5 + (rnd.nextDouble() - 0.5) * 2.1;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "notch_dim_dev_um", notchDimDevUm);
-        updateTelemetry(ns, "stack_align_dev_um", stackAlignDevUm);
-        updateTelemetry(ns, "winding_tension_N", windingTensionN);
-        updateTelemetry(ns, "weld_resistance_mOhm", weldResistanceMOhm);
-        updateTelemetry(ns, "leak_rate_Pa_s", leakRatePaS);
-        updateTelemetry(ns, "fill_volume_ml", fillVolumeMl);
-        updateTelemetry(ns, "stack_alignment", Math.abs(stackAlignDevUm));
-        updateTelemetry(ns, "winding_tension", windingTensionN);
-        updateTelemetry(ns, "weld_quality", 100.0 - weldResistanceMOhm);
-        updateTelemetry(ns, "electrolyte_fill", fillVolumeMl);
+        updateTelemetry(ns, "ultrasonic_power", ultrasonicPowerW);
+        updateTelemetry(ns, "residual_moisture", residualMoisturePpm);
+        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
+        updateTelemetry(ns, "drying_temperature", dryingTemperatureC);
+        updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -277,6 +259,11 @@ public class AssemblyUnit02 extends UnitLogic {
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
+        ultrasonicPowerW = 0.0;
+        residualMoisturePpm = 0.0;
+        surfaceDefectDetected = false;
+        dryingTemperatureC = 0.0;
+        cleanlinessScore = 0.0;
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);
@@ -284,11 +271,6 @@ public class AssemblyUnit02 extends UnitLogic {
         updateTelemetry(ns, "good_count", 0);
         updateTelemetry(ns, "ng_count", 0);
         updateTelemetry(ns, "t_in_cycle_sec", 0.0);
-        updateTelemetry(ns, "notch_dim_dev_um", 0.0);
-        updateTelemetry(ns, "stack_align_dev_um", 0.0);
-        updateTelemetry(ns, "winding_tension_N", 0.0);
-        updateTelemetry(ns, "weld_resistance_mOhm", 0.0);
-        updateTelemetry(ns, "leak_rate_Pa_s", 0.0);
-        updateTelemetry(ns, "fill_volume_ml", 0.0);
+        updateMetricTelemetry(ns);
     }
 }

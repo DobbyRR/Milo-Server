@@ -50,11 +50,13 @@ public class ProductionLineController {
     private String currentOrderNo = "";
     private int currentOrderTargetQty = 0;
     private int currentOrderPpm = 0;
+    private String currentOrderItemCode = "";
 
     private int finalOkTotal = 0;
     private long trayIdCounter = 0L;
     private long serialCounter = 1L;
     private String serialPrefix = "CC-A";
+    private String orderItemCode = "";
 
     public ProductionLineController(MultiMachineNameSpace namespace, String lineName, UaFolderNode lineFolder) {
         this.namespace = namespace;
@@ -65,6 +67,7 @@ public class ProductionLineController {
 
     private void initializeNodes() {
         nodes.put("order_no", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_no"), orderNo));
+        nodes.put("order_item_code", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_item_code"), orderItemCode));
         nodes.put("order_target_qty", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_target_qty"), targetQuantity));
         nodes.put("order_produced_qty", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_produced_qty"), 0));
         nodes.put("order_status", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_status"), orderStatus));
@@ -119,8 +122,8 @@ public class ProductionLineController {
 
     private synchronized void handleCommand(String command) {
         String[] tokens = command.split(":");
-        String action = tokens[0].trim().toUpperCase();
-        switch (action) {
+        String action = tokens[0].trim();
+        switch (action.toUpperCase()) {
             case "START":
                 if (tokens.length < 3) {
                     System.err.printf("[%s] START requires START:<order>:<qty>[:<itemPrefix>]\n", lineName);
@@ -128,25 +131,58 @@ public class ProductionLineController {
                 }
                 try {
                     String orderId = tokens[1];
-                    int targetQty = Integer.parseInt(tokens[2]);
+                    Integer targetQty = Integer.parseInt(tokens[2]);
                     String itemPrefix = tokens.length >= 4 ? tokens[3] : serialPrefix;
-                    startOrder(orderId, targetQty, itemPrefix);
+                    processMesCommand(action, orderId, targetQty, itemPrefix);
                 } catch (NumberFormatException ex) {
                     System.err.printf("[%s] Invalid START parameters '%s': %s\n", lineName, command, ex.getMessage());
                 }
                 break;
             case "ACK":
-                acknowledge();
-                break;
             case "STOP":
-                stopLine();
+                processMesCommand(action, null, null, null);
                 break;
             default:
                 System.err.printf("[%s] Unsupported line command '%s'%n", lineName, command);
         }
     }
 
-    private synchronized void startOrder(String orderId, int targetQty, String itemPrefix) {
+    public synchronized void processMesCommand(String action,
+                                               String orderId,
+                                               Integer targetQty,
+                                               String itemCode) {
+        if (action == null || action.isBlank()) {
+            System.err.printf("[%s] Missing action for MES command.%n", lineName);
+            return;
+        }
+
+        String normalizedAction = action.trim().toUpperCase();
+        switch (normalizedAction) {
+            case "START":
+                if (orderId == null || orderId.isBlank()) {
+                    System.err.printf("[%s] START command requires orderNo.%n", lineName);
+                    return;
+                }
+                if (targetQty == null || targetQty <= 0) {
+                    System.err.printf("[%s] START command requires positive targetQty but got %s.%n",
+                            lineName, String.valueOf(targetQty));
+                    return;
+                }
+                String sanitizedItemCode = itemCode != null && !itemCode.isBlank() ? itemCode.trim() : null;
+                startOrder(orderId.trim(), targetQty, sanitizedItemCode);
+                break;
+            case "STOP":
+                stopLine();
+                break;
+            case "ACK":
+                acknowledge();
+                break;
+            default:
+                System.err.printf("[%s] Unsupported MES action '%s'%n", lineName, normalizedAction);
+        }
+    }
+
+    private synchronized void startOrder(String orderId, int targetQty, String itemCode) {
         if (orderActive || awaitingAck) {
             System.err.printf("[%s] Line busy; cannot start new order.%n", lineName);
             return;
@@ -155,11 +191,16 @@ public class ProductionLineController {
         this.awaitingAck = false;
         this.orderNo = orderId;
         this.targetQuantity = targetQty;
-        this.serialPrefix = itemPrefix != null && !itemPrefix.isBlank() ? itemPrefix : this.serialPrefix;
+        String sanitizedItemCode = itemCode != null ? itemCode.trim() : "";
+        if (!sanitizedItemCode.isEmpty()) {
+            this.serialPrefix = sanitizedItemCode;
+        }
+        this.orderItemCode = sanitizedItemCode;
         this.finalOkTotal = 0;
         this.currentOrderNo = orderId;
         this.currentOrderTargetQty = targetQty;
         this.currentOrderPpm = 0;
+        this.currentOrderItemCode = sanitizedItemCode;
         this.trayIdCounter = 0;
 
         machineAssignments.clear();
@@ -171,6 +212,7 @@ public class ProductionLineController {
 
         orderStatus = "PREPARING";
         updateLineTelemetry();
+        machines().forEach(machine -> machine.updateOrderItemCode(namespace, sanitizedItemCode));
         updateNode("order_produced_qty", 0);
 
         StageState firstStage = stages.get(STAGE_TRAY_CLEAN);
@@ -201,6 +243,8 @@ public class ProductionLineController {
         awaitingAck = false;
         orderActive = false;
         orderStatus = "ACKED";
+        orderItemCode = "";
+        currentOrderItemCode = "";
         updateLineTelemetry();
     }
 
@@ -408,9 +452,10 @@ public class ProductionLineController {
                 stageNo);
         machine.assignTray(namespace, tray.trayId, tray.serials);
         if (!machine.isContinuousMode()) {
-            machine.beginContinuousOrder(namespace, currentOrderNo, tray.plannedQty, machine.getDefaultPpm());
+            machine.beginContinuousOrder(namespace, currentOrderNo, tray.plannedQty, machine.getDefaultPpm(), currentOrderItemCode);
         } else {
             machine.appendOrderTarget(namespace, tray.plannedQty);
+            machine.updateOrderItemCode(namespace, currentOrderItemCode);
         }
         MachineAssignment assignment = new MachineAssignment(stageNo, machine, tray,
                 machineProduction.getOrDefault(machine, 0),
@@ -442,6 +487,7 @@ public class ProductionLineController {
 
     private void updateLineTelemetry() {
         updateNode("order_no", orderNo);
+        updateNode("order_item_code", orderItemCode);
         updateNode("order_target_qty", targetQuantity);
         updateNode("order_ppm", linePpm);
         updateNode("order_status", orderStatus);

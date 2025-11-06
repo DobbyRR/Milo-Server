@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.electrodeUnit2nd;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.formationUnit4th;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,12 +6,10 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ElectrodeUnit02 extends UnitLogic {
+public class FormationUnit01 extends UnitLogic {
 
-    private double mixPhase = Math.PI / 6;
-
-    private static final double[] STAGE_DURATIONS_SEC = {2.0, 3.0, 3.0, 2.0, 2.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
+    private static final double[] STAGE_DURATIONS_SEC = {4.0, 4.0, 4.0, 4.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 16.0;
     private static final double TIME_ACCELERATION = 5.0;
 
     private int stageIndex = 0;
@@ -22,38 +20,38 @@ public class ElectrodeUnit02 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double viscosityCp = 0.0;
-    private double coatingThicknessUm = 0.0;
-    private double ovenTempC = 0.0;
-    private double calenderPressureMpa = 0.0;
-    private double slitWidthDevUm = 0.0;
+    private double chargeVoltage = 0.0;
+    private double chargeCurrent = 0.0;
+    private double cellTemperature = 0.0;
+    private double internalResistance = 0.0;
+    private double capacityAh = 0.0;
 
     /**
-     * Electrode NG Type codes (1~4)
-     * 1 - 슬러리 점도 이상
-     * 2 - 코팅 두께 불량
-     * 3 - 오븐 온도 이상
-     * 4 - 슬리팅 정밀도 불량
+     * Formation NG Type codes (1~4)
+     * 1 - 충전 전압 이상
+     * 2 - 충전 전류 이상
+     * 3 - 셀 온도 이상
+     * 4 - 용량 부족
      */
     private static final class NgType {
-        static final int SLURRY_VISCOSITY = 1;
-        static final int COATING_THICKNESS = 2;
-        static final int OVEN_TEMPERATURE = 3;
-        static final int SLITTING_ACCURACY = 4;
+        static final int CHARGE_VOLTAGE = 1;
+        static final int CHARGE_CURRENT = 2;
+        static final int CELL_TEMPERATURE = 3;
+        static final int CAPACITY_DEFECT = 4;
 
         private NgType() {}
     }
 
-    public ElectrodeUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public FormationUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "ELECTRODE";
+        this.unitType = "FORMATION";
         this.lineId = "CylindricalLine";
-        this.machineNo = 2;
-        this.equipmentId = "EU-02";
-        this.processId = "Electrode";
-        configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
-        this.defaultPpm = 92;
+        this.machineNo = 4;
+        this.equipmentId = "FU-01";
+        this.processId = "Formation";
+        this.defaultPpm = 70;
         setUnitsPerCycle(1);
+        configureEnergyProfile(1.5, 0.2, 15.0, 1.8);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -61,18 +59,11 @@ public class ElectrodeUnit02 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("mix_viscosity", ns.addVariableNode(machineFolder, name + ".mix_viscosity", 0.0));
-        telemetryNodes.put("slurry_temperature", ns.addVariableNode(machineFolder, name + ".slurry_temperature", 25.0));
-        telemetryNodes.put("coating_thickness", ns.addVariableNode(machineFolder, name + ".coating_thickness", 0.0));
-        telemetryNodes.put("oven_temperature", ns.addVariableNode(machineFolder, name + ".oven_temperature", 0.0));
-        telemetryNodes.put("calender_pressure", ns.addVariableNode(machineFolder, name + ".calender_pressure", 0.0));
-        telemetryNodes.put("slitting_accuracy", ns.addVariableNode(machineFolder, name + ".slitting_accuracy", 0.0));
-
-        telemetryNodes.put("viscosity_cP", ns.addVariableNode(machineFolder, name + ".viscosity_cP", 0.0));
-        telemetryNodes.put("coat_thickness_um", ns.addVariableNode(machineFolder, name + ".coat_thickness_um", 0.0));
-        telemetryNodes.put("oven_temp_c", ns.addVariableNode(machineFolder, name + ".oven_temp_c", 0.0));
-        telemetryNodes.put("calender_pressure_MPa", ns.addVariableNode(machineFolder, name + ".calender_pressure_MPa", 0.0));
-        telemetryNodes.put("slit_width_dev_um", ns.addVariableNode(machineFolder, name + ".slit_width_dev_um", 0.0));
+        telemetryNodes.put("charge_voltage", ns.addVariableNode(machineFolder, name + ".charge_voltage", 0.0));
+        telemetryNodes.put("charge_current", ns.addVariableNode(machineFolder, name + ".charge_current", 0.0));
+        telemetryNodes.put("cell_temperature", ns.addVariableNode(machineFolder, name + ".cell_temperature", 25.0));
+        telemetryNodes.put("capacity_ah", ns.addVariableNode(machineFolder, name + ".capacity_ah", 0.0));
+        telemetryNodes.put("internal_resistance", ns.addVariableNode(machineFolder, name + ".internal_resistance", 0.0));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -81,13 +72,12 @@ public class ElectrodeUnit02 extends UnitLogic {
         telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
         telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
         telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
-        telemetryNodes.put("throughput_upm", ns.addVariableNode(machineFolder, name + ".throughput_upm", 0.0));
     }
 
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[ElectrodeUnit02] Unsupported command '%s'%n", command);
+            System.err.printf("[FormationUnit01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -95,7 +85,7 @@ public class ElectrodeUnit02 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                simulateIdle(ns);
+                applyIdleDrift(ns);
                 break;
             case "STARTING":
                 if (timeInState(2000)) {
@@ -107,8 +97,7 @@ public class ElectrodeUnit02 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
-                updateTelemetry(ns, "calender_pressure", 0.0);
-                if (timeInState(2000)) {
+                if (timeInState(3000)) {
                     onOrderCompleted(ns);
                 }
                 break;
@@ -121,22 +110,13 @@ public class ElectrodeUnit02 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_EU");
+                updateTelemetry(ns, "alarm_code", "STOP_FU");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
                 break;
         }
-    }
-
-    private void simulateIdle(MultiMachineNameSpace ns) {
-        mixPhase += 0.1;
-        double viscosityIdle = 1095 + Math.sin(mixPhase) * 38 + (Math.random() - 0.5) * 12;
-        updateTelemetry(ns, "mix_viscosity", viscosityIdle);
-        updateTelemetry(ns, "slurry_temperature", 25 + (Math.random() - 0.5) * 0.6);
-        updateTelemetry(ns, "oven_temperature", 154 + (Math.random() - 0.5) * 1.5);
-        applyIdleDrift(ns);
     }
 
     private void handleExecute(MultiMachineNameSpace ns) {
@@ -167,6 +147,7 @@ public class ElectrodeUnit02 extends UnitLogic {
                 break;
             }
         }
+
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
@@ -176,8 +157,8 @@ public class ElectrodeUnit02 extends UnitLogic {
         }
         String nextSerial = acquireNextSerial(ns);
         if (nextSerial.isEmpty()) {
-            updateTelemetry(ns, "serial_ok", true);
             updateTelemetry(ns, "current_serial", "");
+            updateTelemetry(ns, "serial_ok", true);
             updateTelemetry(ns, "ng_type", 0);
             return false;
         }
@@ -190,30 +171,30 @@ public class ElectrodeUnit02 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
-        cycleElapsed = 0.0;
 
-        boolean viscosityOk = viscosityCp >= 900 && viscosityCp <= 1300;
-        boolean thicknessOk = coatingThicknessUm >= 83 && coatingThicknessUm <= 92;
-        boolean ovenOk = ovenTempC >= 120;
-        boolean pressureOk = calenderPressureMpa >= 90 && calenderPressureMpa <= 110;
-        boolean slitOk = Math.abs(slitWidthDevUm) <= 10;
+        boolean voltageOk = chargeVoltage >= 3.55 && chargeVoltage <= 3.65;
+        boolean currentOk = chargeCurrent >= 1.40 && chargeCurrent <= 1.60;
+        boolean temperatureOk = cellTemperature >= 27.0 && cellTemperature <= 32.0;
+        boolean capacityOk = capacityAh >= 96.0;
+        boolean resistanceOk = internalResistance >= 1.68 && internalResistance <= 1.92;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!viscosityOk) {
+        if (!voltageOk) {
             serialOk = false;
-            ngType = NgType.SLURRY_VISCOSITY;
-        } else if (!thicknessOk) {
+            ngType = NgType.CHARGE_VOLTAGE;
+        } else if (!currentOk) {
             serialOk = false;
-            ngType = NgType.COATING_THICKNESS;
-        } else if (!ovenOk) {
+            ngType = NgType.CHARGE_CURRENT;
+        } else if (!temperatureOk) {
             serialOk = false;
-            ngType = NgType.OVEN_TEMPERATURE;
-        } else if (!pressureOk || !slitOk) {
+            ngType = NgType.CELL_TEMPERATURE;
+        } else if (!capacityOk || !resistanceOk) {
             serialOk = false;
-            ngType = NgType.SLITTING_ACCURACY;
+            ngType = NgType.CAPACITY_DEFECT;
         }
 
         processedSerialCount++;
@@ -234,7 +215,6 @@ public class ElectrodeUnit02 extends UnitLogic {
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
         updateTelemetry(ns, "ng_type", currentNgType);
         updateProcessCountersTelemetry(ns);
-        updateThroughputTelemetry(ns);
 
         String nextSerial = acquireNextSerial(ns);
         if (!nextSerial.isEmpty()) {
@@ -248,30 +228,19 @@ public class ElectrodeUnit02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        mixPhase += 0.18;
-        viscosityCp = randomWithin(rnd, 1090.0, 0.04);
-        coatingThicknessUm = randomWithin(rnd, 88.2, 0.045);
-        ovenTempC = randomWithin(rnd, 165.0, 0.03);
-        calenderPressureMpa = randomWithin(rnd, 100.5, 0.035);
-        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 8.0;
-    }
-
-    private double randomWithin(ThreadLocalRandom rnd, double center, double pctSpread) {
-        double spread = center * pctSpread;
-        return center + (rnd.nextDouble() * 2.0 - 1.0) * spread;
+        chargeVoltage = 3.60 + (rnd.nextDouble() - 0.5) * 0.04;
+        chargeCurrent = 1.50 + (rnd.nextDouble() - 0.5) * 0.10;
+        cellTemperature = 29.0 + (rnd.nextDouble() - 0.5) * 1.8;
+        internalResistance = 1.80 + (rnd.nextDouble() - 0.5) * 0.10;
+        capacityAh = 97.5 + (rnd.nextDouble() - 0.5) * 2.5;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "viscosity_cP", viscosityCp);
-        updateTelemetry(ns, "coat_thickness_um", coatingThicknessUm);
-        updateTelemetry(ns, "oven_temp_c", ovenTempC);
-        updateTelemetry(ns, "calender_pressure_MPa", calenderPressureMpa);
-        updateTelemetry(ns, "slit_width_dev_um", slitWidthDevUm);
-        updateTelemetry(ns, "mix_viscosity", viscosityCp);
-        updateTelemetry(ns, "coating_thickness", coatingThicknessUm);
-        updateTelemetry(ns, "oven_temperature", ovenTempC);
-        updateTelemetry(ns, "calender_pressure", calenderPressureMpa);
-        updateTelemetry(ns, "slitting_accuracy", Math.abs(slitWidthDevUm));
+        updateTelemetry(ns, "charge_voltage", chargeVoltage);
+        updateTelemetry(ns, "charge_current", chargeCurrent);
+        updateTelemetry(ns, "cell_temperature", cellTemperature);
+        updateTelemetry(ns, "internal_resistance", internalResistance);
+        updateTelemetry(ns, "capacity_ah", capacityAh);
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -280,28 +249,28 @@ public class ElectrodeUnit02 extends UnitLogic {
         updateTelemetry(ns, "ng_count", ngCount);
     }
 
-    private void updateThroughputTelemetry(MultiMachineNameSpace ns) {
-        double minutes = totalElapsedSeconds / 60.0;
-        double throughput = minutes <= 0.0 ? 0.0 : okCount / minutes;
-        updateTelemetry(ns, "throughput_upm", throughput);
-        updateTelemetry(ns, "cycle_time_sec", TOTAL_CYCLE_TIME_SEC);
-    }
-
     @Override
     protected void resetOrderState(MultiMachineNameSpace ns) {
         super.resetOrderState(ns);
         stageIndex = 0;
         stageElapsed = 0.0;
+        cycleElapsed = 0.0;
         totalElapsedSeconds = 0.0;
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
+        chargeVoltage = 0.0;
+        chargeCurrent = 0.0;
+        cellTemperature = 0.0;
+        internalResistance = 0.0;
+        capacityAh = 0.0;
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);
         updateTelemetry(ns, "processed_count", 0);
         updateTelemetry(ns, "good_count", 0);
         updateTelemetry(ns, "ng_count", 0);
-        updateTelemetry(ns, "throughput_upm", 0.0);
+        updateTelemetry(ns, "t_in_cycle_sec", 0.0);
+        updateMetricTelemetry(ns);
     }
 }

@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.finalInspection;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.finalInspection;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;

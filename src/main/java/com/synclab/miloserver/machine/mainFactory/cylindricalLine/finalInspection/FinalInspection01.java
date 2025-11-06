@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.moduleAndPackUnit5th;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.finalInspection;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,11 +6,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ModuleAndPackUnit01 extends UnitLogic {
+public class FinalInspection01 extends UnitLogic {
 
-    private static final double[] STAGE_DURATIONS_SEC = {3.0, 3.0, 3.0, 3.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
-    private static final double TIME_ACCELERATION = 4.0;
+    private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 6.0;
+    private static final int SIMULATION_SPEED = 5;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -20,38 +20,38 @@ public class ModuleAndPackUnit01 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double cellAlignmentMm = 0.0;
-    private double moduleResistanceMOhm = 0.0;
-    private boolean bmsHealthy = true;
-    private double weldResistanceMOhm = 0.0;
-    private double torqueNm = 0.0;
+    private double visionScore = 0.0;
+    private double electricalResistance = 0.0;
+    private boolean safetyPassed = true;
+    private boolean functionPassed = true;
+    private String lotCode = "";
 
     /**
-     * Module & Pack NG Type codes (1~4)
-     * 1 - 셀 정렬 불량
-     * 2 - 모듈 저항 불량
-     * 3 - 용접 저항 불량
-     * 4 - 체결 토크 불량
+     * Final Inspection NG Type codes (1~4)
+     * 1 - 비전 검사 불량
+     * 2 - 전기 저항 불량
+     * 3 - 안전 검사 실패
+     * 4 - 기능 검사 실패
      */
     private static final class NgType {
-        static final int CELL_ALIGNMENT = 1;
-        static final int MODULE_RESISTANCE = 2;
-        static final int WELD_RESISTANCE = 3;
-        static final int TORQUE_OUT_OF_SPEC = 4;
+        static final int VISION_FAIL = 1;
+        static final int RESISTANCE_FAIL = 2;
+        static final int SAFETY_FAIL = 3;
+        static final int FUNCTION_FAIL = 4;
 
         private NgType() {}
     }
 
-    public ModuleAndPackUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public FinalInspection01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "MODULE_PACK";
+        this.unitType = "FINAL_INSPECTION";
         this.lineId = "CylindricalLine";
-        this.machineNo = 5;
-        this.equipmentId = "MP-01";
-        this.processId = "ModulePack";
-        this.defaultPpm = 60;
+        this.machineNo = 7;
+        this.equipmentId = "FI-01";
+        this.processId = "FinalInspection";
+        this.defaultPpm = 50;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.8, 0.1, 8.0, 1.0);
+        configureEnergyProfile(0.3, 0.04, 3.5, 0.5);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -59,11 +59,11 @@ public class ModuleAndPackUnit01 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("cell_alignment", ns.addVariableNode(machineFolder, name + ".cell_alignment", 0.0));
-        telemetryNodes.put("module_resistance", ns.addVariableNode(machineFolder, name + ".module_resistance", 0.0));
-        telemetryNodes.put("bms_status", ns.addVariableNode(machineFolder, name + ".bms_status", "IDLE"));
-        telemetryNodes.put("weld_resistance", ns.addVariableNode(machineFolder, name + ".weld_resistance", 0.0));
-        telemetryNodes.put("torque_result", ns.addVariableNode(machineFolder, name + ".torque_result", 0.0));
+        telemetryNodes.put("vision_score", ns.addVariableNode(machineFolder, name + ".vision_score", 0.0));
+        telemetryNodes.put("electrical_resistance", ns.addVariableNode(machineFolder, name + ".electrical_resistance", 0.0));
+        telemetryNodes.put("safety_passed", ns.addVariableNode(machineFolder, name + ".safety_passed", true));
+        telemetryNodes.put("function_passed", ns.addVariableNode(machineFolder, name + ".function_passed", true));
+        telemetryNodes.put("lot_verified", ns.addVariableNode(machineFolder, name + ".lot_verified", ""));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -77,7 +77,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[ModulAndPackUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[FinalInspection01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -97,7 +97,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
-                updateTelemetry(ns, "bms_status", "VERIFY");
+                updateTelemetry(ns, "lot_verified", "WAIT_ACK");
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
@@ -111,7 +111,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_MP");
+                updateTelemetry(ns, "alarm_code", "STOP_FI");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
@@ -122,34 +122,36 @@ public class ModuleAndPackUnit01 extends UnitLogic {
 
     private void handleExecute(MultiMachineNameSpace ns) {
         applyOperatingEnergy(ns);
-        double deltaSeconds = TIME_ACCELERATION;
-        totalElapsedSeconds += deltaSeconds;
-        cycleElapsed += deltaSeconds;
+        for (int step = 0; step < SIMULATION_SPEED; step++) {
+            double deltaSeconds = 1.0 / SIMULATION_SPEED;
+            totalElapsedSeconds += deltaSeconds;
+            cycleElapsed += deltaSeconds;
 
-        if (!hasMoreSerials()) {
-            if (!"IDLE".equals(state)) {
-                changeState(ns, "IDLE");
+            if (!hasMoreSerials()) {
+                if (!"IDLE".equals(state)) {
+                    changeState(ns, "IDLE");
+                }
+                return;
             }
-            return;
-        }
-
-        if (!prepareCurrentSerial(ns)) {
-            return;
-        }
-
-        stageElapsed += deltaSeconds;
-        while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-            stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
-            stageIndex++;
-            if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-                concludeSerialCycle(ns);
-                stageIndex = 0;
-                stageElapsed = 0.0;
-                break;
+            if (!prepareCurrentSerial(ns)) {
+                continue;
             }
-        }
 
-        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+            stageElapsed += deltaSeconds;
+            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+                stageIndex++;
+                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                    concludeSerialCycle(ns);
+                    stageIndex = 0;
+                    stageElapsed = 0.0;
+                    cycleElapsed = 0.0;
+                    break;
+                }
+            }
+
+            updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+        }
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
@@ -172,29 +174,26 @@ public class ModuleAndPackUnit01 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
-        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean alignmentOk = cellAlignmentMm <= 0.12;
-        boolean resistanceOk = moduleResistanceMOhm >= 3.30 && moduleResistanceMOhm <= 3.70;
-        boolean weldOk = weldResistanceMOhm <= 0.85;
-        boolean torqueOk = torqueNm >= 5.20 && torqueNm <= 5.80;
+        boolean visionOk = visionScore >= 93.0;
+        boolean resistanceOk = electricalResistance >= 2.5 && electricalResistance <= 3.5;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!alignmentOk) {
+        if (!visionOk) {
             serialOk = false;
-            ngType = NgType.CELL_ALIGNMENT;
+            ngType = NgType.VISION_FAIL;
         } else if (!resistanceOk) {
             serialOk = false;
-            ngType = NgType.MODULE_RESISTANCE;
-        } else if (!weldOk) {
+            ngType = NgType.RESISTANCE_FAIL;
+        } else if (!safetyPassed) {
             serialOk = false;
-            ngType = NgType.WELD_RESISTANCE;
-        } else if (!torqueOk || !bmsHealthy) {
+            ngType = NgType.SAFETY_FAIL;
+        } else if (!functionPassed) {
             serialOk = false;
-            ngType = NgType.TORQUE_OUT_OF_SPEC;
+            ngType = NgType.FUNCTION_FAIL;
         }
 
         processedSerialCount++;
@@ -212,7 +211,6 @@ public class ModuleAndPackUnit01 extends UnitLogic {
             currentNgType = ngType;
         }
 
-        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
         updateTelemetry(ns, "ng_type", currentNgType);
         updateProcessCountersTelemetry(ns);
@@ -229,19 +227,19 @@ public class ModuleAndPackUnit01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.05 + 0.03;
-        moduleResistanceMOhm = 3.50 + (rnd.nextDouble() - 0.5) * 0.16;
-        bmsHealthy = rnd.nextDouble() > 0.01;
-        weldResistanceMOhm = 0.78 + (rnd.nextDouble() - 0.5) * 0.06;
-        torqueNm = 5.50 + (rnd.nextDouble() - 0.5) * 0.24;
+        visionScore = 95.0 + (rnd.nextDouble() - 0.5) * 3.0;
+        electricalResistance = 3.0 + (rnd.nextDouble() - 0.5) * 0.6;
+        safetyPassed = rnd.nextDouble() > 0.01;
+        functionPassed = rnd.nextDouble() > 0.015;
+        lotCode = "LOT-" + (1000 + rnd.nextInt(9000));
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "cell_alignment", cellAlignmentMm);
-        updateTelemetry(ns, "module_resistance", moduleResistanceMOhm);
-        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
-        updateTelemetry(ns, "weld_resistance", weldResistanceMOhm);
-        updateTelemetry(ns, "torque_result", torqueNm);
+        updateTelemetry(ns, "vision_score", visionScore);
+        updateTelemetry(ns, "electrical_resistance", electricalResistance);
+        updateTelemetry(ns, "safety_passed", safetyPassed);
+        updateTelemetry(ns, "function_passed", functionPassed);
+        updateTelemetry(ns, "lot_verified", lotCode);
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -260,11 +258,11 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
-        cellAlignmentMm = 0.0;
-        moduleResistanceMOhm = 0.0;
-        bmsHealthy = true;
-        weldResistanceMOhm = 0.0;
-        torqueNm = 0.0;
+        visionScore = 0.0;
+        electricalResistance = 0.0;
+        safetyPassed = true;
+        functionPassed = true;
+        lotCode = "";
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);

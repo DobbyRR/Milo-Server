@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.formationUnit4th;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.moduleAndPackUnit5th;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,11 +6,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class FormationUnit01 extends UnitLogic {
+public class ModuleAndPackUnit02 extends UnitLogic {
 
-    private static final double[] STAGE_DURATIONS_SEC = {4.0, 4.0, 4.0, 4.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 16.0;
-    private static final double TIME_ACCELERATION = 5.0;
+    private static final double[] STAGE_DURATIONS_SEC = {3.0, 3.0, 3.0, 3.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
+    private static final double TIME_ACCELERATION = 4.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -20,38 +20,38 @@ public class FormationUnit01 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double chargeVoltage = 0.0;
-    private double chargeCurrent = 0.0;
-    private double cellTemperature = 0.0;
-    private double internalResistance = 0.0;
-    private double capacityAh = 0.0;
+    private double cellAlignmentMm = 0.0;
+    private double moduleResistanceMOhm = 0.0;
+    private boolean bmsHealthy = true;
+    private double weldResistanceMOhm = 0.0;
+    private double torqueNm = 0.0;
 
     /**
-     * Formation NG Type codes (1~4)
-     * 1 - 충전 전압 이상
-     * 2 - 충전 전류 이상
-     * 3 - 셀 온도 이상
-     * 4 - 용량 부족
+     * Module & Pack NG Type codes (1~4)
+     * 1 - 셀 정렬 불량
+     * 2 - 모듈 저항 불량
+     * 3 - 용접 저항 불량
+     * 4 - 체결 토크 불량
      */
     private static final class NgType {
-        static final int CHARGE_VOLTAGE = 1;
-        static final int CHARGE_CURRENT = 2;
-        static final int CELL_TEMPERATURE = 3;
-        static final int CAPACITY_DEFECT = 4;
+        static final int CELL_ALIGNMENT = 1;
+        static final int MODULE_RESISTANCE = 2;
+        static final int WELD_RESISTANCE = 3;
+        static final int TORQUE_OUT_OF_SPEC = 4;
 
         private NgType() {}
     }
 
-    public FormationUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ModuleAndPackUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "FORMATION";
+        this.unitType = "MODULE_PACK";
         this.lineId = "CylindricalLine";
-        this.machineNo = 4;
-        this.equipmentId = "FU-01";
-        this.processId = "Formation";
-        this.defaultPpm = 70;
+        this.machineNo = 5;
+        this.equipmentId = "MP-02";
+        this.processId = "ModulePack";
+        this.defaultPpm = 62;
         setUnitsPerCycle(1);
-        configureEnergyProfile(1.5, 0.2, 15.0, 1.8);
+        configureEnergyProfile(0.82, 0.1, 8.2, 1.05);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -59,11 +59,11 @@ public class FormationUnit01 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("charge_voltage", ns.addVariableNode(machineFolder, name + ".charge_voltage", 0.0));
-        telemetryNodes.put("charge_current", ns.addVariableNode(machineFolder, name + ".charge_current", 0.0));
-        telemetryNodes.put("cell_temperature", ns.addVariableNode(machineFolder, name + ".cell_temperature", 25.0));
-        telemetryNodes.put("capacity_ah", ns.addVariableNode(machineFolder, name + ".capacity_ah", 0.0));
-        telemetryNodes.put("internal_resistance", ns.addVariableNode(machineFolder, name + ".internal_resistance", 0.0));
+        telemetryNodes.put("cell_alignment", ns.addVariableNode(machineFolder, name + ".cell_alignment", 0.0));
+        telemetryNodes.put("module_resistance", ns.addVariableNode(machineFolder, name + ".module_resistance", 0.0));
+        telemetryNodes.put("bms_status", ns.addVariableNode(machineFolder, name + ".bms_status", "IDLE"));
+        telemetryNodes.put("weld_resistance", ns.addVariableNode(machineFolder, name + ".weld_resistance", 0.0));
+        telemetryNodes.put("torque_result", ns.addVariableNode(machineFolder, name + ".torque_result", 0.0));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -77,7 +77,7 @@ public class FormationUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[FormationUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[ModulAndPackUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -97,7 +97,8 @@ public class FormationUnit01 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
-                if (timeInState(3000)) {
+                updateTelemetry(ns, "bms_status", "VERIFY");
+                if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
                 break;
@@ -110,7 +111,7 @@ public class FormationUnit01 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_FU");
+                updateTelemetry(ns, "alarm_code", "STOP_MP");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
@@ -175,26 +176,25 @@ public class FormationUnit01 extends UnitLogic {
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean voltageOk = chargeVoltage >= 3.55 && chargeVoltage <= 3.65;
-        boolean currentOk = chargeCurrent >= 1.40 && chargeCurrent <= 1.60;
-        boolean temperatureOk = cellTemperature >= 27.0 && cellTemperature <= 32.0;
-        boolean capacityOk = capacityAh >= 96.0;
-        boolean resistanceOk = internalResistance >= 1.68 && internalResistance <= 1.92;
+        boolean alignmentOk = cellAlignmentMm <= 0.13;
+        boolean resistanceOk = moduleResistanceMOhm >= 3.35 && moduleResistanceMOhm <= 3.78;
+        boolean weldOk = weldResistanceMOhm <= 0.86;
+        boolean torqueOk = torqueNm >= 5.30 && torqueNm <= 5.90;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!voltageOk) {
+        if (!alignmentOk) {
             serialOk = false;
-            ngType = NgType.CHARGE_VOLTAGE;
-        } else if (!currentOk) {
+            ngType = NgType.CELL_ALIGNMENT;
+        } else if (!resistanceOk) {
             serialOk = false;
-            ngType = NgType.CHARGE_CURRENT;
-        } else if (!temperatureOk) {
+            ngType = NgType.MODULE_RESISTANCE;
+        } else if (!weldOk) {
             serialOk = false;
-            ngType = NgType.CELL_TEMPERATURE;
-        } else if (!capacityOk || !resistanceOk) {
+            ngType = NgType.WELD_RESISTANCE;
+        } else if (!torqueOk || !bmsHealthy) {
             serialOk = false;
-            ngType = NgType.CAPACITY_DEFECT;
+            ngType = NgType.TORQUE_OUT_OF_SPEC;
         }
 
         processedSerialCount++;
@@ -212,6 +212,7 @@ public class FormationUnit01 extends UnitLogic {
             currentNgType = ngType;
         }
 
+        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
         updateTelemetry(ns, "ng_type", currentNgType);
         updateProcessCountersTelemetry(ns);
@@ -228,19 +229,19 @@ public class FormationUnit01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        chargeVoltage = 3.60 + (rnd.nextDouble() - 0.5) * 0.04;
-        chargeCurrent = 1.50 + (rnd.nextDouble() - 0.5) * 0.10;
-        cellTemperature = 29.0 + (rnd.nextDouble() - 0.5) * 1.8;
-        internalResistance = 1.80 + (rnd.nextDouble() - 0.5) * 0.10;
-        capacityAh = 97.5 + (rnd.nextDouble() - 0.5) * 2.5;
+        cellAlignmentMm = Math.abs(rnd.nextGaussian()) * 0.055 + 0.035;
+        moduleResistanceMOhm = 3.55 + (rnd.nextDouble() - 0.5) * 0.18;
+        bmsHealthy = rnd.nextDouble() > 0.012;
+        weldResistanceMOhm = 0.80 + (rnd.nextDouble() - 0.5) * 0.06;
+        torqueNm = 5.55 + (rnd.nextDouble() - 0.5) * 0.22;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "charge_voltage", chargeVoltage);
-        updateTelemetry(ns, "charge_current", chargeCurrent);
-        updateTelemetry(ns, "cell_temperature", cellTemperature);
-        updateTelemetry(ns, "internal_resistance", internalResistance);
-        updateTelemetry(ns, "capacity_ah", capacityAh);
+        updateTelemetry(ns, "cell_alignment", cellAlignmentMm);
+        updateTelemetry(ns, "module_resistance", moduleResistanceMOhm);
+        updateTelemetry(ns, "bms_status", bmsHealthy ? "OK" : "WARN");
+        updateTelemetry(ns, "weld_resistance", weldResistanceMOhm);
+        updateTelemetry(ns, "torque_result", torqueNm);
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -259,11 +260,11 @@ public class FormationUnit01 extends UnitLogic {
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
-        chargeVoltage = 0.0;
-        chargeCurrent = 0.0;
-        cellTemperature = 0.0;
-        internalResistance = 0.0;
-        capacityAh = 0.0;
+        cellAlignmentMm = 0.0;
+        moduleResistanceMOhm = 0.0;
+        bmsHealthy = true;
+        weldResistanceMOhm = 0.0;
+        torqueNm = 0.0;
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);

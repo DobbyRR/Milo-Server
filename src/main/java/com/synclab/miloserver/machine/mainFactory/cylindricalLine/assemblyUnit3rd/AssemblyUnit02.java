@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.assemblyUnit3rd;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.assemblyUnit3rd;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,7 +6,7 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class AssemblyUnit01 extends UnitLogic {
+public class AssemblyUnit02 extends UnitLogic {
 
     private static final double[] STAGE_DURATIONS_SEC = {3.0, 4.0, 3.0, 2.0, 2.0};
     private static final double TOTAL_CYCLE_TIME_SEC = 14.0;
@@ -29,30 +29,30 @@ public class AssemblyUnit01 extends UnitLogic {
 
     /**
      * Assembly NG Type codes (1~4)
-     * 1 - 노칭 치수 공차 초과
-     * 2 - 적층/권취 정렬 또는 장력 불량
-     * 3 - 탭 용접 저항 과다
-     * 4 - 봉입 누설 과다 또는 주입량 과/부족
+     * 1 - 적층 정렬 불량
+     * 2 - 권선 장력 이상
+     * 3 - 용접 품질 불량
+     * 4 - 누액/밀봉 불량
      */
     private static final class NgType {
-        static final int NOTCH_DIMENSION = 1;
-        static final int STACK_OR_TENSION = 2;
-        static final int WELD_RESISTANCE = 3;
-        static final int SEAL_OR_FILL = 4;
+        static final int STACK_ALIGNMENT = 1;
+        static final int WINDING_TENSION = 2;
+        static final int WELD_QUALITY = 3;
+        static final int LEAK_TEST = 4;
 
         private NgType() {}
     }
 
-    public AssemblyUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public AssemblyUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "ASSEMBLY";
         this.lineId = "CylindricalLine";
         this.machineNo = 3;
-        this.equipmentId = "AU-01";
+        this.equipmentId = "AU-02";
         this.processId = "Assembly";
-        this.defaultPpm = 80;
+        this.defaultPpm = 82;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.7, 0.08, 6.5, 0.8);
+        configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -85,7 +85,7 @@ public class AssemblyUnit01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[AssemblyUnit01] Unsupported command '%s'%n", command);
+            System.err.printf("[AssemblyUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -185,26 +185,26 @@ public class AssemblyUnit01 extends UnitLogic {
         updateMetricTelemetry(ns);
 
         boolean notchOk = Math.abs(notchDimDevUm) <= 12.0;
-        boolean stackOk = Math.abs(stackAlignDevUm) <= 20.0;
-        boolean tensionOk = windingTensionN >= 35.0 && windingTensionN <= 45.0;
-        boolean weldOk = weldResistanceMOhm <= 1.5;
-        boolean sealOk = leakRatePaS <= 1.0;
-        boolean fillOk = fillVolumeMl >= 4.8 && fillVolumeMl <= 5.2;
+        boolean stackOk = Math.abs(stackAlignDevUm) <= 18.0;
+        boolean tensionOk = windingTensionN >= 36.0 && windingTensionN <= 44.0;
+        boolean weldOk = weldResistanceMOhm <= 1.6;
+        boolean leakOk = leakRatePaS <= 1.05;
+        boolean fillOk = fillVolumeMl >= 4.75 && fillVolumeMl <= 5.15;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!notchOk) {
+        if (!stackOk) {
             serialOk = false;
-            ngType = NgType.NOTCH_DIMENSION;
-        } else if (!stackOk || !tensionOk) {
+            ngType = NgType.STACK_ALIGNMENT;
+        } else if (!tensionOk) {
             serialOk = false;
-            ngType = NgType.STACK_OR_TENSION;
+            ngType = NgType.WINDING_TENSION;
         } else if (!weldOk) {
             serialOk = false;
-            ngType = NgType.WELD_RESISTANCE;
-        } else if (!sealOk || !fillOk) {
+            ngType = NgType.WELD_QUALITY;
+        } else if (!leakOk || !fillOk) {
             serialOk = false;
-            ngType = NgType.SEAL_OR_FILL;
+            ngType = NgType.LEAK_TEST;
         }
 
         processedSerialCount++;
@@ -240,12 +240,12 @@ public class AssemblyUnit01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        notchDimDevUm = (rnd.nextDouble() - 0.5) * 10.0;
-        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 12.0;
-        windingTensionN = 40.0 + (rnd.nextDouble() - 0.5) * 6.0;
-        weldResistanceMOhm = 1.0 + (rnd.nextDouble() - 0.5) * 0.4;
-        leakRatePaS = Math.max(0.0, 0.55 + (rnd.nextDouble() - 0.5) * 0.4);
-        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.3;
+        notchDimDevUm = (rnd.nextDouble() - 0.5) * 8.0;
+        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 14.0;
+        windingTensionN = 40.5 + (rnd.nextDouble() - 0.5) * 5.0;
+        weldResistanceMOhm = 1.1 + (rnd.nextDouble() - 0.5) * 0.5;
+        leakRatePaS = Math.max(0.0, 0.6 + (rnd.nextDouble() - 0.5) * 0.5);
+        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.25;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {

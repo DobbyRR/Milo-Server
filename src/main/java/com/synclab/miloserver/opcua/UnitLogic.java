@@ -33,6 +33,7 @@ public abstract class UnitLogic {
     protected String equipmentId;
     protected String processId;
     protected String orderNo = "";
+    protected String orderItemCode = "";
     protected String trayId = "";
     protected final List<String> traySerials = new ArrayList<>();
     protected final List<String> trayRejectedSerials = new ArrayList<>();
@@ -130,6 +131,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_ng_type4_qty", ns.addVariableNode(machineFolder, name + ".order_ng_type4_qty", 0));
         telemetryNodes.put("order_no", ns.addVariableNode(machineFolder, name + ".order_no", orderNo));
         telemetryNodes.put("order_target_qty", ns.addVariableNode(machineFolder, name + ".order_target_qty", targetQuantity));
+        telemetryNodes.put("order_item_code", ns.addVariableNode(machineFolder, name + ".order_item_code", orderItemCode));
         telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
         telemetryNodes.put("order_ok_qty", ns.addVariableNode(machineFolder, name + ".order_ok_qty", okCount));
         telemetryNodes.put("order_ng_qty", ns.addVariableNode(machineFolder, name + ".order_ng_qty", ngCount));
@@ -177,6 +179,12 @@ public abstract class UnitLogic {
         if (lineController != null) {
             lineController.onMachineQualityChanged(this, okCount, ngCount);
         }
+    }
+
+    public synchronized void updateOrderItemCode(MultiMachineNameSpace ns, String newItemCode) {
+        String sanitized = newItemCode != null ? newItemCode.trim() : "";
+        updateTelemetry(ns, "order_item_code", sanitized);
+        this.orderItemCode = sanitized;
     }
 
     protected void updateTrayTelemetry(MultiMachineNameSpace ns) {
@@ -327,6 +335,14 @@ public abstract class UnitLogic {
                                                   String newOrderNo,
                                                   int initialTargetQuantity,
                                                   int targetPpm) {
+        beginContinuousOrder(ns, newOrderNo, initialTargetQuantity, targetPpm, null);
+    }
+
+    public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,
+                                                  String newOrderNo,
+                                                  int initialTargetQuantity,
+                                                  int targetPpm,
+                                                  String newItemCode) {
         if (newOrderNo != null && !newOrderNo.isBlank()) {
             orderNo = newOrderNo;
             updateTelemetry(ns, "order_no", orderNo);
@@ -338,6 +354,9 @@ public abstract class UnitLogic {
         if (initialTargetQuantity > 0) {
             targetQuantity += initialTargetQuantity;
             updateTelemetry(ns, "order_target_qty", targetQuantity);
+        }
+        if (newItemCode != null) {
+            updateOrderItemCode(ns, newItemCode);
         }
         continuousMode = true;
         orderActive = true;
@@ -407,7 +426,7 @@ public abstract class UnitLogic {
                     if (tokens.length >= 4 && !tokens[3].isBlank()) {
                         targetPpm = Integer.parseInt(tokens[3]);
                     }
-                    handleStartCommand(ns, orderId, targetQty, targetPpm);
+                    handleStartCommand(ns, orderId, targetQty, targetPpm, null);
                 } catch (NumberFormatException ex) {
                     System.err.printf("[%s] Invalid START parameters '%s': %s%n", name, command, ex.getMessage());
                 }
@@ -434,8 +453,8 @@ public abstract class UnitLogic {
         }
     }
 
-    protected void handleStartCommand(MultiMachineNameSpace ns, String orderId, int targetQty, int targetPpm) {
-        startOrder(ns, orderId, targetQty, targetPpm);
+    protected void handleStartCommand(MultiMachineNameSpace ns, String orderId, int targetQty, int targetPpm, String itemCode) {
+        startOrder(ns, orderId, targetQty, targetPpm, itemCode);
     }
 
     public void setDefaultPpm(int defaultPpm) {
@@ -566,6 +585,14 @@ public abstract class UnitLogic {
     }
 
     public synchronized void startOrder(MultiMachineNameSpace ns, String newOrderNo, int newTargetQuantity, int newPpm) {
+        startOrder(ns, newOrderNo, newTargetQuantity, newPpm, null);
+    }
+
+    public synchronized void startOrder(MultiMachineNameSpace ns,
+                                        String newOrderNo,
+                                        int newTargetQuantity,
+                                        int newPpm,
+                                        String newItemCode) {
         if (newTargetQuantity <= 0) {
             throw new IllegalArgumentException("targetQuantity must be > 0");
         }
@@ -574,6 +601,7 @@ public abstract class UnitLogic {
         this.orderNo = newOrderNo;
         this.targetQuantity = newTargetQuantity;
         this.ppm = effectivePpm;
+        updateOrderItemCode(ns, newItemCode);
         this.producedQuantity = 0;
         this.cycleAccumulator = 0.0;
         this.lastProducedIncrement = 0;
@@ -652,6 +680,7 @@ public abstract class UnitLogic {
         this.continuousMode = false;
         clearTrayContext(ns);
         updateTelemetry(ns, "order_no", orderNo);
+        updateOrderItemCode(ns, "");
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, producedQuantity);
         updateQualityCounts(ns, 0, 0);

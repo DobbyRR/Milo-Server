@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.cellCleanUnit6th;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,7 +6,7 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class CellCleaner02 extends UnitLogic {
+public class CellCleaner01 extends UnitLogic {
 
     private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0, 2.0};
     private static final double TOTAL_CYCLE_TIME_SEC = 8.0;
@@ -42,16 +42,16 @@ public class CellCleaner02 extends UnitLogic {
         private NgType() {}
     }
 
-    public CellCleaner02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public CellCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "CELL_CLEAN";
         this.lineId = "CylindricalLine";
         this.machineNo = 6;
-        this.equipmentId = "CC-02";
+        this.equipmentId = "CC-01";
         this.processId = "CellCleaning";
-        this.defaultPpm = 56;
+        this.defaultPpm = 55;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.52, 0.07, 5.2, 0.65);
+        configureEnergyProfile(0.5, 0.07, 5.0, 0.6);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -77,7 +77,7 @@ public class CellCleaner02 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[CellCleaner02] Unsupported command '%s'%n", command);
+            System.err.printf("[CellCleaner01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -175,10 +175,10 @@ public class CellCleaner02 extends UnitLogic {
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean powerOk = ultrasonicPowerW >= 116 && ultrasonicPowerW <= 126;
-        boolean moistureOk = residualMoisturePpm <= 2.8;
-        boolean tempOk = dryingTemperatureC >= 53.0 && dryingTemperatureC <= 58.0;
-        boolean cleanlinessOk = cleanlinessScore >= 89.0;
+        boolean powerOk = ultrasonicPowerW >= 115 && ultrasonicPowerW <= 125;
+        boolean moistureOk = residualMoisturePpm <= 3.0;
+        boolean tempOk = dryingTemperatureC >= 53.0 && dryingTemperatureC <= 57.0;
+        boolean cleanlinessOk = cleanlinessScore >= 88.0;
 
         boolean serialOk = true;
         int ngType = 0;
@@ -228,11 +228,11 @@ public class CellCleaner02 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        ultrasonicPowerW = 121.0 + (rnd.nextDouble() - 0.5) * 4.2;
-        residualMoisturePpm = Math.max(0.2, 2.2 + (rnd.nextDouble() - 0.5) * 1.2);
-        surfaceDefectDetected = rnd.nextDouble() > 0.996;
-        dryingTemperatureC = 55.2 + (rnd.nextDouble() - 0.5) * 1.3;
-        cleanlinessScore = 93.5 + (rnd.nextDouble() - 0.5) * 2.1;
+        ultrasonicPowerW = 120.5 + (rnd.nextDouble() - 0.5) * 4.0;
+        residualMoisturePpm = Math.max(0.2, 2.0 + (rnd.nextDouble() - 0.5) * 1.0);
+        surfaceDefectDetected = rnd.nextDouble() > 0.995;
+        dryingTemperatureC = 55.0 + (rnd.nextDouble() - 0.5) * 1.2;
+        cleanlinessScore = 93.0 + (rnd.nextDouble() - 0.5) * 2.0;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {

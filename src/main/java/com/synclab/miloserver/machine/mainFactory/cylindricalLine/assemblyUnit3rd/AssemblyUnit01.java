@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.finalInspection;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.assemblyUnit3rd;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,11 +6,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class FinalInspection01 extends UnitLogic {
+public class AssemblyUnit01 extends UnitLogic {
 
-    private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 6.0;
-    private static final int SIMULATION_SPEED = 5;
+    private static final double[] STAGE_DURATIONS_SEC = {3.0, 4.0, 3.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 14.0;
+    private static final double TIME_ACCELERATION = 5.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -20,38 +20,39 @@ public class FinalInspection01 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double visionScore = 0.0;
-    private double electricalResistance = 0.0;
-    private boolean safetyPassed = true;
-    private boolean functionPassed = true;
-    private String lotCode = "";
+    private double notchDimDevUm = 0.0;
+    private double stackAlignDevUm = 0.0;
+    private double windingTensionN = 0.0;
+    private double weldResistanceMOhm = 0.0;
+    private double leakRatePaS = 0.0;
+    private double fillVolumeMl = 0.0;
 
     /**
-     * Final Inspection NG Type codes (1~4)
-     * 1 - 비전 검사 불량
-     * 2 - 전기 저항 불량
-     * 3 - 안전 검사 실패
-     * 4 - 기능 검사 실패
+     * Assembly NG Type codes (1~4)
+     * 1 - 노칭 치수 공차 초과
+     * 2 - 적층/권취 정렬 또는 장력 불량
+     * 3 - 탭 용접 저항 과다
+     * 4 - 봉입 누설 과다 또는 주입량 과/부족
      */
     private static final class NgType {
-        static final int VISION_FAIL = 1;
-        static final int RESISTANCE_FAIL = 2;
-        static final int SAFETY_FAIL = 3;
-        static final int FUNCTION_FAIL = 4;
+        static final int NOTCH_DIMENSION = 1;
+        static final int STACK_OR_TENSION = 2;
+        static final int WELD_RESISTANCE = 3;
+        static final int SEAL_OR_FILL = 4;
 
         private NgType() {}
     }
 
-    public FinalInspection01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public AssemblyUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "FINAL_INSPECTION";
+        this.unitType = "ASSEMBLY";
         this.lineId = "CylindricalLine";
-        this.machineNo = 7;
-        this.equipmentId = "FI-01";
-        this.processId = "FinalInspection";
-        this.defaultPpm = 50;
+        this.machineNo = 3;
+        this.equipmentId = "AU-01";
+        this.processId = "Assembly";
+        this.defaultPpm = 80;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.3, 0.04, 3.5, 0.5);
+        configureEnergyProfile(0.7, 0.08, 6.5, 0.8);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -59,11 +60,18 @@ public class FinalInspection01 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("vision_score", ns.addVariableNode(machineFolder, name + ".vision_score", 0.0));
-        telemetryNodes.put("electrical_resistance", ns.addVariableNode(machineFolder, name + ".electrical_resistance", 0.0));
-        telemetryNodes.put("safety_passed", ns.addVariableNode(machineFolder, name + ".safety_passed", true));
-        telemetryNodes.put("function_passed", ns.addVariableNode(machineFolder, name + ".function_passed", true));
-        telemetryNodes.put("lot_verified", ns.addVariableNode(machineFolder, name + ".lot_verified", ""));
+        telemetryNodes.put("stack_alignment", ns.addVariableNode(machineFolder, name + ".stack_alignment", 0.0));
+        telemetryNodes.put("winding_tension", ns.addVariableNode(machineFolder, name + ".winding_tension", 0.0));
+        telemetryNodes.put("weld_quality", ns.addVariableNode(machineFolder, name + ".weld_quality", 0.0));
+        telemetryNodes.put("leak_test_result", ns.addVariableNode(machineFolder, name + ".leak_test_result", "IDLE"));
+        telemetryNodes.put("electrolyte_fill", ns.addVariableNode(machineFolder, name + ".electrolyte_fill", 0.0));
+
+        telemetryNodes.put("notch_dim_dev_um", ns.addVariableNode(machineFolder, name + ".notch_dim_dev_um", 0.0));
+        telemetryNodes.put("stack_align_dev_um", ns.addVariableNode(machineFolder, name + ".stack_align_dev_um", 0.0));
+        telemetryNodes.put("winding_tension_N", ns.addVariableNode(machineFolder, name + ".winding_tension_N", 0.0));
+        telemetryNodes.put("weld_resistance_mOhm", ns.addVariableNode(machineFolder, name + ".weld_resistance_mOhm", 0.0));
+        telemetryNodes.put("leak_rate_Pa_s", ns.addVariableNode(machineFolder, name + ".leak_rate_Pa_s", 0.0));
+        telemetryNodes.put("fill_volume_ml", ns.addVariableNode(machineFolder, name + ".fill_volume_ml", 0.0));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -77,7 +85,7 @@ public class FinalInspection01 extends UnitLogic {
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[FinalInspection01] Unsupported command '%s'%n", command);
+            System.err.printf("[AssemblyUnit01] Unsupported command '%s'%n", command);
         }
     }
 
@@ -97,7 +105,7 @@ public class FinalInspection01 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
-                updateTelemetry(ns, "lot_verified", "WAIT_ACK");
+                updateTelemetry(ns, "leak_test_result", "VERIFY");
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
@@ -111,7 +119,7 @@ public class FinalInspection01 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_FI");
+                updateTelemetry(ns, "alarm_code", "STOP_AU");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
@@ -122,36 +130,34 @@ public class FinalInspection01 extends UnitLogic {
 
     private void handleExecute(MultiMachineNameSpace ns) {
         applyOperatingEnergy(ns);
-        for (int step = 0; step < SIMULATION_SPEED; step++) {
-            double deltaSeconds = 1.0 / SIMULATION_SPEED;
-            totalElapsedSeconds += deltaSeconds;
-            cycleElapsed += deltaSeconds;
+        double deltaSeconds = TIME_ACCELERATION;
+        totalElapsedSeconds += deltaSeconds;
+        cycleElapsed += deltaSeconds;
 
-            if (!hasMoreSerials()) {
-                if (!"IDLE".equals(state)) {
-                    changeState(ns, "IDLE");
-                }
-                return;
+        if (!hasMoreSerials()) {
+            if (!"IDLE".equals(state)) {
+                changeState(ns, "IDLE");
             }
-            if (!prepareCurrentSerial(ns)) {
-                continue;
-            }
-
-            stageElapsed += deltaSeconds;
-            while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
-                stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
-                stageIndex++;
-                if (stageIndex >= STAGE_DURATIONS_SEC.length) {
-                    concludeSerialCycle(ns);
-                    stageIndex = 0;
-                    stageElapsed = 0.0;
-                    cycleElapsed = 0.0;
-                    break;
-                }
-            }
-
-            updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+            return;
         }
+
+        if (!prepareCurrentSerial(ns)) {
+            return;
+        }
+
+        stageElapsed += deltaSeconds;
+        while (stageElapsed >= STAGE_DURATIONS_SEC[stageIndex]) {
+            stageElapsed -= STAGE_DURATIONS_SEC[stageIndex];
+            stageIndex++;
+            if (stageIndex >= STAGE_DURATIONS_SEC.length) {
+                concludeSerialCycle(ns);
+                stageIndex = 0;
+                stageElapsed = 0.0;
+                break;
+            }
+        }
+
+        updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {
@@ -174,26 +180,31 @@ public class FinalInspection01 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
+        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
 
-        boolean visionOk = visionScore >= 93.0;
-        boolean resistanceOk = electricalResistance >= 2.5 && electricalResistance <= 3.5;
+        boolean notchOk = Math.abs(notchDimDevUm) <= 12.0;
+        boolean stackOk = Math.abs(stackAlignDevUm) <= 20.0;
+        boolean tensionOk = windingTensionN >= 35.0 && windingTensionN <= 45.0;
+        boolean weldOk = weldResistanceMOhm <= 1.5;
+        boolean sealOk = leakRatePaS <= 1.0;
+        boolean fillOk = fillVolumeMl >= 4.8 && fillVolumeMl <= 5.2;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!visionOk) {
+        if (!notchOk) {
             serialOk = false;
-            ngType = NgType.VISION_FAIL;
-        } else if (!resistanceOk) {
+            ngType = NgType.NOTCH_DIMENSION;
+        } else if (!stackOk || !tensionOk) {
             serialOk = false;
-            ngType = NgType.RESISTANCE_FAIL;
-        } else if (!safetyPassed) {
+            ngType = NgType.STACK_OR_TENSION;
+        } else if (!weldOk) {
             serialOk = false;
-            ngType = NgType.SAFETY_FAIL;
-        } else if (!functionPassed) {
+            ngType = NgType.WELD_RESISTANCE;
+        } else if (!sealOk || !fillOk) {
             serialOk = false;
-            ngType = NgType.FUNCTION_FAIL;
+            ngType = NgType.SEAL_OR_FILL;
         }
 
         processedSerialCount++;
@@ -204,11 +215,13 @@ public class FinalInspection01 extends UnitLogic {
             updateQualityCounts(ns, okCount + 1, ngCount);
             currentSerialOkFlag = true;
             currentNgType = 0;
+            updateTelemetry(ns, "leak_test_result", "PASS");
         } else {
             completeActiveSerialNg(ns, ngType);
             updateQualityCounts(ns, okCount, ngCount + 1);
             currentSerialOkFlag = false;
             currentNgType = ngType;
+            updateTelemetry(ns, "leak_test_result", "FAIL");
         }
 
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
@@ -227,19 +240,25 @@ public class FinalInspection01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        visionScore = 95.0 + (rnd.nextDouble() - 0.5) * 3.0;
-        electricalResistance = 3.0 + (rnd.nextDouble() - 0.5) * 0.6;
-        safetyPassed = rnd.nextDouble() > 0.01;
-        functionPassed = rnd.nextDouble() > 0.015;
-        lotCode = "LOT-" + (1000 + rnd.nextInt(9000));
+        notchDimDevUm = (rnd.nextDouble() - 0.5) * 10.0;
+        stackAlignDevUm = (rnd.nextDouble() - 0.5) * 12.0;
+        windingTensionN = 40.0 + (rnd.nextDouble() - 0.5) * 6.0;
+        weldResistanceMOhm = 1.0 + (rnd.nextDouble() - 0.5) * 0.4;
+        leakRatePaS = Math.max(0.0, 0.55 + (rnd.nextDouble() - 0.5) * 0.4);
+        fillVolumeMl = 5.0 + (rnd.nextDouble() - 0.5) * 0.3;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "vision_score", visionScore);
-        updateTelemetry(ns, "electrical_resistance", electricalResistance);
-        updateTelemetry(ns, "safety_passed", safetyPassed);
-        updateTelemetry(ns, "function_passed", functionPassed);
-        updateTelemetry(ns, "lot_verified", lotCode);
+        updateTelemetry(ns, "notch_dim_dev_um", notchDimDevUm);
+        updateTelemetry(ns, "stack_align_dev_um", stackAlignDevUm);
+        updateTelemetry(ns, "winding_tension_N", windingTensionN);
+        updateTelemetry(ns, "weld_resistance_mOhm", weldResistanceMOhm);
+        updateTelemetry(ns, "leak_rate_Pa_s", leakRatePaS);
+        updateTelemetry(ns, "fill_volume_ml", fillVolumeMl);
+        updateTelemetry(ns, "stack_alignment", Math.abs(stackAlignDevUm));
+        updateTelemetry(ns, "winding_tension", windingTensionN);
+        updateTelemetry(ns, "weld_quality", 100.0 - weldResistanceMOhm);
+        updateTelemetry(ns, "electrolyte_fill", fillVolumeMl);
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -258,11 +277,6 @@ public class FinalInspection01 extends UnitLogic {
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
-        visionScore = 0.0;
-        electricalResistance = 0.0;
-        safetyPassed = true;
-        functionPassed = true;
-        lotCode = "";
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);
@@ -270,6 +284,11 @@ public class FinalInspection01 extends UnitLogic {
         updateTelemetry(ns, "good_count", 0);
         updateTelemetry(ns, "ng_count", 0);
         updateTelemetry(ns, "t_in_cycle_sec", 0.0);
-        updateMetricTelemetry(ns);
+        updateTelemetry(ns, "notch_dim_dev_um", 0.0);
+        updateTelemetry(ns, "stack_align_dev_um", 0.0);
+        updateTelemetry(ns, "winding_tension_N", 0.0);
+        updateTelemetry(ns, "weld_resistance_mOhm", 0.0);
+        updateTelemetry(ns, "leak_rate_Pa_s", 0.0);
+        updateTelemetry(ns, "fill_volume_ml", 0.0);
     }
 }

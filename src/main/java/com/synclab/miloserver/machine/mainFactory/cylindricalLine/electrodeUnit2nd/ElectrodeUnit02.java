@@ -1,4 +1,4 @@
-package com.synclab.miloserver.machine.cylindricalLine.cellCleanUnit6th;
+package com.synclab.miloserver.machine.mainFactory.cylindricalLine.electrodeUnit2nd;
 
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.UnitLogic;
@@ -6,11 +6,13 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class CellCleaner01 extends UnitLogic {
+public class ElectrodeUnit02 extends UnitLogic {
 
-    private static final double[] STAGE_DURATIONS_SEC = {2.0, 2.0, 2.0, 2.0};
-    private static final double TOTAL_CYCLE_TIME_SEC = 8.0;
-    private static final double TIME_ACCELERATION = 10.0;
+    private double mixPhase = Math.PI / 6;
+
+    private static final double[] STAGE_DURATIONS_SEC = {2.0, 3.0, 3.0, 2.0, 2.0};
+    private static final double TOTAL_CYCLE_TIME_SEC = 12.0;
+    private static final double TIME_ACCELERATION = 5.0;
 
     private int stageIndex = 0;
     private double stageElapsed = 0.0;
@@ -20,38 +22,38 @@ public class CellCleaner01 extends UnitLogic {
     private boolean currentSerialOkFlag = true;
     private int currentNgType = 0;
 
-    private double ultrasonicPowerW = 0.0;
-    private double residualMoisturePpm = 0.0;
-    private boolean surfaceDefectDetected = false;
-    private double dryingTemperatureC = 0.0;
-    private double cleanlinessScore = 0.0;
+    private double viscosityCp = 0.0;
+    private double coatingThicknessUm = 0.0;
+    private double ovenTempC = 0.0;
+    private double calenderPressureMpa = 0.0;
+    private double slitWidthDevUm = 0.0;
 
     /**
-     * Cell Cleaner NG Type codes (1~4)
-     * 1 - 잔류 수분 과다
-     * 2 - 초음파 출력 부족
-     * 3 - 표면 결함 검출
-     * 4 - 건조 온도 이상
+     * Electrode NG Type codes (1~4)
+     * 1 - 슬러리 점도 이상
+     * 2 - 코팅 두께 불량
+     * 3 - 오븐 온도 이상
+     * 4 - 슬리팅 정밀도 불량
      */
     private static final class NgType {
-        static final int RESIDUAL_MOISTURE = 1;
-        static final int ULTRASONIC_POWER = 2;
-        static final int SURFACE_DEFECT = 3;
-        static final int DRYING_TEMPERATURE = 4;
+        static final int SLURRY_VISCOSITY = 1;
+        static final int COATING_THICKNESS = 2;
+        static final int OVEN_TEMPERATURE = 3;
+        static final int SLITTING_ACCURACY = 4;
 
         private NgType() {}
     }
 
-    public CellCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ElectrodeUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
         super(name, folder);
-        this.unitType = "CELL_CLEAN";
+        this.unitType = "ELECTRODE";
         this.lineId = "CylindricalLine";
-        this.machineNo = 6;
-        this.equipmentId = "CC-01";
-        this.processId = "CellCleaning";
-        this.defaultPpm = 55;
+        this.machineNo = 2;
+        this.equipmentId = "EU-02";
+        this.processId = "Electrode";
+        configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
+        this.defaultPpm = 92;
         setUnitsPerCycle(1);
-        configureEnergyProfile(0.5, 0.07, 5.0, 0.6);
 
         setupCommonTelemetry(ns);
         setupVariables(ns);
@@ -59,11 +61,18 @@ public class CellCleaner01 extends UnitLogic {
 
     @Override
     public void setupVariables(MultiMachineNameSpace ns) {
-        telemetryNodes.put("ultrasonic_power", ns.addVariableNode(machineFolder, name + ".ultrasonic_power", 0.0));
-        telemetryNodes.put("residual_moisture", ns.addVariableNode(machineFolder, name + ".residual_moisture", 0.0));
-        telemetryNodes.put("surface_defects", ns.addVariableNode(machineFolder, name + ".surface_defects", 0));
-        telemetryNodes.put("drying_temperature", ns.addVariableNode(machineFolder, name + ".drying_temperature", 0.0));
-        telemetryNodes.put("cleanliness_score", ns.addVariableNode(machineFolder, name + ".cleanliness_score", 0.0));
+        telemetryNodes.put("mix_viscosity", ns.addVariableNode(machineFolder, name + ".mix_viscosity", 0.0));
+        telemetryNodes.put("slurry_temperature", ns.addVariableNode(machineFolder, name + ".slurry_temperature", 25.0));
+        telemetryNodes.put("coating_thickness", ns.addVariableNode(machineFolder, name + ".coating_thickness", 0.0));
+        telemetryNodes.put("oven_temperature", ns.addVariableNode(machineFolder, name + ".oven_temperature", 0.0));
+        telemetryNodes.put("calender_pressure", ns.addVariableNode(machineFolder, name + ".calender_pressure", 0.0));
+        telemetryNodes.put("slitting_accuracy", ns.addVariableNode(machineFolder, name + ".slitting_accuracy", 0.0));
+
+        telemetryNodes.put("viscosity_cP", ns.addVariableNode(machineFolder, name + ".viscosity_cP", 0.0));
+        telemetryNodes.put("coat_thickness_um", ns.addVariableNode(machineFolder, name + ".coat_thickness_um", 0.0));
+        telemetryNodes.put("oven_temp_c", ns.addVariableNode(machineFolder, name + ".oven_temp_c", 0.0));
+        telemetryNodes.put("calender_pressure_MPa", ns.addVariableNode(machineFolder, name + ".calender_pressure_MPa", 0.0));
+        telemetryNodes.put("slit_width_dev_um", ns.addVariableNode(machineFolder, name + ".slit_width_dev_um", 0.0));
         telemetryNodes.put("current_serial", ns.addVariableNode(machineFolder, name + ".current_serial", ""));
         telemetryNodes.put("serial_ok", ns.addVariableNode(machineFolder, name + ".serial_ok", true));
         telemetryNodes.put("ng_type", ns.addVariableNode(machineFolder, name + ".ng_type", 0));
@@ -72,12 +81,13 @@ public class CellCleaner01 extends UnitLogic {
         telemetryNodes.put("processed_count", ns.addVariableNode(machineFolder, name + ".processed_count", 0));
         telemetryNodes.put("good_count", ns.addVariableNode(machineFolder, name + ".good_count", 0));
         telemetryNodes.put("ng_count", ns.addVariableNode(machineFolder, name + ".ng_count", 0));
+        telemetryNodes.put("throughput_upm", ns.addVariableNode(machineFolder, name + ".throughput_upm", 0.0));
     }
 
     @Override
     public void onCommand(MultiMachineNameSpace ns, String command) {
         if (!handleCommonCommand(ns, command)) {
-            System.err.printf("[CellCleaner01] Unsupported command '%s'%n", command);
+            System.err.printf("[ElectrodeUnit02] Unsupported command '%s'%n", command);
         }
     }
 
@@ -85,7 +95,7 @@ public class CellCleaner01 extends UnitLogic {
     public void simulateStep(MultiMachineNameSpace ns) {
         switch (state) {
             case "IDLE":
-                applyIdleDrift(ns);
+                simulateIdle(ns);
                 break;
             case "STARTING":
                 if (timeInState(2000)) {
@@ -97,6 +107,7 @@ public class CellCleaner01 extends UnitLogic {
                 handleExecute(ns);
                 break;
             case "COMPLETING":
+                updateTelemetry(ns, "calender_pressure", 0.0);
                 if (timeInState(2000)) {
                     onOrderCompleted(ns);
                 }
@@ -110,13 +121,22 @@ public class CellCleaner01 extends UnitLogic {
                 }
                 break;
             case "STOPPING":
-                updateTelemetry(ns, "alarm_code", "STOP_CC");
+                updateTelemetry(ns, "alarm_code", "STOP_EU");
                 updateTelemetry(ns, "alarm_level", "INFO");
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
                 break;
         }
+    }
+
+    private void simulateIdle(MultiMachineNameSpace ns) {
+        mixPhase += 0.1;
+        double viscosityIdle = 1095 + Math.sin(mixPhase) * 38 + (Math.random() - 0.5) * 12;
+        updateTelemetry(ns, "mix_viscosity", viscosityIdle);
+        updateTelemetry(ns, "slurry_temperature", 25 + (Math.random() - 0.5) * 0.6);
+        updateTelemetry(ns, "oven_temperature", 154 + (Math.random() - 0.5) * 1.5);
+        applyIdleDrift(ns);
     }
 
     private void handleExecute(MultiMachineNameSpace ns) {
@@ -147,7 +167,6 @@ public class CellCleaner01 extends UnitLogic {
                 break;
             }
         }
-
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
     }
 
@@ -157,8 +176,8 @@ public class CellCleaner01 extends UnitLogic {
         }
         String nextSerial = acquireNextSerial(ns);
         if (nextSerial.isEmpty()) {
-            updateTelemetry(ns, "current_serial", "");
             updateTelemetry(ns, "serial_ok", true);
+            updateTelemetry(ns, "current_serial", "");
             updateTelemetry(ns, "ng_type", 0);
             return false;
         }
@@ -171,29 +190,30 @@ public class CellCleaner01 extends UnitLogic {
     }
 
     private void concludeSerialCycle(MultiMachineNameSpace ns) {
-        cycleElapsed = 0.0;
         sampleProcessMetrics();
         updateMetricTelemetry(ns);
+        cycleElapsed = 0.0;
 
-        boolean powerOk = ultrasonicPowerW >= 115 && ultrasonicPowerW <= 125;
-        boolean moistureOk = residualMoisturePpm <= 3.0;
-        boolean tempOk = dryingTemperatureC >= 53.0 && dryingTemperatureC <= 57.0;
-        boolean cleanlinessOk = cleanlinessScore >= 88.0;
+        boolean viscosityOk = viscosityCp >= 900 && viscosityCp <= 1300;
+        boolean thicknessOk = coatingThicknessUm >= 83 && coatingThicknessUm <= 92;
+        boolean ovenOk = ovenTempC >= 120;
+        boolean pressureOk = calenderPressureMpa >= 90 && calenderPressureMpa <= 110;
+        boolean slitOk = Math.abs(slitWidthDevUm) <= 10;
 
         boolean serialOk = true;
         int ngType = 0;
-        if (!moistureOk) {
+        if (!viscosityOk) {
             serialOk = false;
-            ngType = NgType.RESIDUAL_MOISTURE;
-        } else if (!powerOk) {
+            ngType = NgType.SLURRY_VISCOSITY;
+        } else if (!thicknessOk) {
             serialOk = false;
-            ngType = NgType.ULTRASONIC_POWER;
-        } else if (surfaceDefectDetected) {
+            ngType = NgType.COATING_THICKNESS;
+        } else if (!ovenOk) {
             serialOk = false;
-            ngType = NgType.SURFACE_DEFECT;
-        } else if (!tempOk || !cleanlinessOk) {
+            ngType = NgType.OVEN_TEMPERATURE;
+        } else if (!pressureOk || !slitOk) {
             serialOk = false;
-            ngType = NgType.DRYING_TEMPERATURE;
+            ngType = NgType.SLITTING_ACCURACY;
         }
 
         processedSerialCount++;
@@ -211,10 +231,10 @@ public class CellCleaner01 extends UnitLogic {
             currentNgType = ngType;
         }
 
-        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
         updateTelemetry(ns, "serial_ok", currentSerialOkFlag);
         updateTelemetry(ns, "ng_type", currentNgType);
         updateProcessCountersTelemetry(ns);
+        updateThroughputTelemetry(ns);
 
         String nextSerial = acquireNextSerial(ns);
         if (!nextSerial.isEmpty()) {
@@ -228,19 +248,30 @@ public class CellCleaner01 extends UnitLogic {
 
     private void sampleProcessMetrics() {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        ultrasonicPowerW = 120.5 + (rnd.nextDouble() - 0.5) * 4.0;
-        residualMoisturePpm = Math.max(0.2, 2.0 + (rnd.nextDouble() - 0.5) * 1.0);
-        surfaceDefectDetected = rnd.nextDouble() > 0.995;
-        dryingTemperatureC = 55.0 + (rnd.nextDouble() - 0.5) * 1.2;
-        cleanlinessScore = 93.0 + (rnd.nextDouble() - 0.5) * 2.0;
+        mixPhase += 0.18;
+        viscosityCp = randomWithin(rnd, 1090.0, 0.04);
+        coatingThicknessUm = randomWithin(rnd, 88.2, 0.045);
+        ovenTempC = randomWithin(rnd, 165.0, 0.03);
+        calenderPressureMpa = randomWithin(rnd, 100.5, 0.035);
+        slitWidthDevUm = (rnd.nextDouble() - 0.5) * 8.0;
+    }
+
+    private double randomWithin(ThreadLocalRandom rnd, double center, double pctSpread) {
+        double spread = center * pctSpread;
+        return center + (rnd.nextDouble() * 2.0 - 1.0) * spread;
     }
 
     private void updateMetricTelemetry(MultiMachineNameSpace ns) {
-        updateTelemetry(ns, "ultrasonic_power", ultrasonicPowerW);
-        updateTelemetry(ns, "residual_moisture", residualMoisturePpm);
-        updateTelemetry(ns, "surface_defects", surfaceDefectDetected ? 1 : 0);
-        updateTelemetry(ns, "drying_temperature", dryingTemperatureC);
-        updateTelemetry(ns, "cleanliness_score", cleanlinessScore);
+        updateTelemetry(ns, "viscosity_cP", viscosityCp);
+        updateTelemetry(ns, "coat_thickness_um", coatingThicknessUm);
+        updateTelemetry(ns, "oven_temp_c", ovenTempC);
+        updateTelemetry(ns, "calender_pressure_MPa", calenderPressureMpa);
+        updateTelemetry(ns, "slit_width_dev_um", slitWidthDevUm);
+        updateTelemetry(ns, "mix_viscosity", viscosityCp);
+        updateTelemetry(ns, "coating_thickness", coatingThicknessUm);
+        updateTelemetry(ns, "oven_temperature", ovenTempC);
+        updateTelemetry(ns, "calender_pressure", calenderPressureMpa);
+        updateTelemetry(ns, "slitting_accuracy", Math.abs(slitWidthDevUm));
     }
 
     private void updateProcessCountersTelemetry(MultiMachineNameSpace ns) {
@@ -249,28 +280,28 @@ public class CellCleaner01 extends UnitLogic {
         updateTelemetry(ns, "ng_count", ngCount);
     }
 
+    private void updateThroughputTelemetry(MultiMachineNameSpace ns) {
+        double minutes = totalElapsedSeconds / 60.0;
+        double throughput = minutes <= 0.0 ? 0.0 : okCount / minutes;
+        updateTelemetry(ns, "throughput_upm", throughput);
+        updateTelemetry(ns, "cycle_time_sec", TOTAL_CYCLE_TIME_SEC);
+    }
+
     @Override
     protected void resetOrderState(MultiMachineNameSpace ns) {
         super.resetOrderState(ns);
         stageIndex = 0;
         stageElapsed = 0.0;
-        cycleElapsed = 0.0;
         totalElapsedSeconds = 0.0;
         processedSerialCount = 0;
         currentSerialOkFlag = true;
         currentNgType = 0;
-        ultrasonicPowerW = 0.0;
-        residualMoisturePpm = 0.0;
-        surfaceDefectDetected = false;
-        dryingTemperatureC = 0.0;
-        cleanlinessScore = 0.0;
         updateTelemetry(ns, "current_serial", "");
         updateTelemetry(ns, "serial_ok", true);
         updateTelemetry(ns, "ng_type", 0);
         updateTelemetry(ns, "processed_count", 0);
         updateTelemetry(ns, "good_count", 0);
         updateTelemetry(ns, "ng_count", 0);
-        updateTelemetry(ns, "t_in_cycle_sec", 0.0);
-        updateMetricTelemetry(ns);
+        updateTelemetry(ns, "throughput_upm", 0.0);
     }
 }
