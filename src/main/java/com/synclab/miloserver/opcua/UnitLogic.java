@@ -71,6 +71,7 @@ public abstract class UnitLogic {
     protected double idleEnergyJitter = 0.05;
     protected double operatingEnergyBase = 1.0;
     protected double operatingEnergyJitter = 0.2;
+    protected double energyUsageScale = 10.0;
 
     protected final Map<String, UaVariableNode> telemetryNodes = new HashMap<>();
     private final ScheduledExecutorService simulationExecutor =
@@ -574,13 +575,13 @@ public abstract class UnitLogic {
 
     protected void applyIdleDrift(MultiMachineNameSpace ns) {
         double jitter = (Math.random() - 0.5) * 2.0 * idleEnergyJitter;
-        energyUsage = Math.max(0.0, idleEnergyBase + jitter);
+        energyUsage = Math.max(0.0, (idleEnergyBase + jitter) * energyUsageScale);
         updateTelemetry(ns, "energy_usage", energyUsage);
     }
 
     protected void applyOperatingEnergy(MultiMachineNameSpace ns) {
         double jitter = (Math.random() - 0.5) * 2.0 * operatingEnergyJitter;
-        energyUsage = Math.max(0.0, operatingEnergyBase + jitter);
+        energyUsage = Math.max(0.0, (operatingEnergyBase + jitter) * energyUsageScale);
         updateTelemetry(ns, "energy_usage", energyUsage);
     }
 
