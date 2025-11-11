@@ -33,6 +33,12 @@ public class CellCleaner01 extends UnitLogic {
      * 3 - 표면 결함 검출
      * 4 - 건조 온도 이상
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "잔류 수분 과다",
+            "초음파 출력 부족",
+            "표면 결함 검출",
+            "건조 온도 이상"
+    };
     private static final class NgType {
         static final int RESIDUAL_MOISTURE = 1;
         static final int ULTRASONIC_POWER = 2;
@@ -54,6 +60,7 @@ public class CellCleaner01 extends UnitLogic {
         configureEnergyProfile(0.5, 0.07, 5.0, 0.6);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

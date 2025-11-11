@@ -34,6 +34,12 @@ public class AssemblyUnit02 extends UnitLogic {
      * 3 - 용접 품질 불량
      * 4 - 누액/밀봉 불량
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "적층 정렬 불량",
+            "권선 장력 이상",
+            "용접 품질 불량",
+            "누액/밀봉 불량"
+    };
     private static final class NgType {
         static final int STACK_ALIGNMENT = 1;
         static final int WINDING_TENSION = 2;
@@ -55,6 +61,7 @@ public class AssemblyUnit02 extends UnitLogic {
         configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

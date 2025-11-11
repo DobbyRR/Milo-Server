@@ -42,6 +42,8 @@ public abstract class UnitLogic {
     protected String activeSerial = "";
     protected final int[] trayNgTypeCounts = new int[4];
     protected int lastNgType = 0;
+    protected String lastNgName = "";
+    private final Map<Integer, String> ngTypeNameMap = new HashMap<>();
 
     protected int targetQuantity = 0;
     protected int producedQuantity = 0;
@@ -136,6 +138,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_produced_qty", ns.addVariableNode(machineFolder, name + ".order_produced_qty", producedQuantity));
         telemetryNodes.put("order_ok_qty", ns.addVariableNode(machineFolder, name + ".order_ok_qty", okCount));
         telemetryNodes.put("order_ng_qty", ns.addVariableNode(machineFolder, name + ".order_ng_qty", ngCount));
+        telemetryNodes.put("order_ng_name", ns.addVariableNode(machineFolder, name + ".order_ng_name", ""));
         telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
     }
@@ -255,6 +258,7 @@ public abstract class UnitLogic {
         trayCompletedOkSerials.add(activeSerial);
         activeSerial = "";
         updateTrayTelemetry(ns);
+        updateNgName(ns, "");
     }
 
     public synchronized void completeActiveSerialNg(MultiMachineNameSpace ns, int ngType) {
@@ -270,6 +274,7 @@ public abstract class UnitLogic {
         activeSerial = "";
         updateTrayTelemetry(ns);
         updateNgTelemetry(ns);
+        updateNgName(ns, resolveNgTypeName(ngType));
     }
 
     public synchronized boolean hasMoreSerials() {
@@ -324,12 +329,38 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "order_ng_type2_qty", trayNgTypeCounts[1]);
         updateTelemetry(ns, "order_ng_type3_qty", trayNgTypeCounts[2]);
         updateTelemetry(ns, "order_ng_type4_qty", trayNgTypeCounts[3]);
+        updateTelemetry(ns, "order_ng_name", lastNgName);
     }
 
     protected void resetNgTelemetry(MultiMachineNameSpace ns) {
         lastNgType = 0;
+        lastNgName = "";
         Arrays.fill(trayNgTypeCounts, 0);
         updateNgTelemetry(ns);
+    }
+
+    protected void registerNgTypeNames(String... names) {
+        ngTypeNameMap.clear();
+        if (names == null) {
+            return;
+        }
+        for (int i = 0; i < names.length; i++) {
+            String name = names[i];
+            if (name != null && !name.isBlank()) {
+                ngTypeNameMap.put(i + 1, name.trim());
+            }
+        }
+    }
+
+    private String resolveNgTypeName(int ngType) {
+        String name = ngTypeNameMap.getOrDefault(ngType, "");
+        lastNgName = name;
+        return name;
+    }
+
+    private void updateNgName(MultiMachineNameSpace ns, String name) {
+        lastNgName = name == null ? "" : name;
+        updateTelemetry(ns, "order_ng_name", lastNgName);
     }
 
     public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,

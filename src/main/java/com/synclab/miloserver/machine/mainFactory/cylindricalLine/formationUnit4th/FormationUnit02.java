@@ -34,6 +34,12 @@ public class FormationUnit02 extends UnitLogic {
      * 3 - 셀 온도 이상
      * 4 - 용량 부족
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "충전 전압 이상",
+            "충전 전류 이상",
+            "셀 온도 이상",
+            "용량 부족"
+    };
     private static final class NgType {
         static final int CHARGE_VOLTAGE = 1;
         static final int CHARGE_CURRENT = 2;
@@ -55,6 +61,7 @@ public class FormationUnit02 extends UnitLogic {
         configureEnergyProfile(1.4, 0.18, 14.5, 1.6);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

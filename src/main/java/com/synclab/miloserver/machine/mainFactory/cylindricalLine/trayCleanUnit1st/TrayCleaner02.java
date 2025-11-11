@@ -30,6 +30,12 @@ public class TrayCleaner02 extends UnitLogic {
      * 3 - 공압 부족
      * 4 - 트레이 손상/파손
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "세정 부족(표면 오염 잔류)",
+            "정전기 과다",
+            "공압 부족",
+            "트레이 손상/파손"
+    };
     private static final class NgType {
         static final int INSUFFICIENT_CLEANING = 1;
         static final int EXCESS_STATIC = 2;
@@ -51,6 +57,7 @@ public class TrayCleaner02 extends UnitLogic {
         configureEnergyProfile(0.15, 0.03, 2.8, 0.35);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

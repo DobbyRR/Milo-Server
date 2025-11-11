@@ -35,6 +35,12 @@ public class ElectrodeUnit01 extends UnitLogic {
      * 3 - 오븐 온도 이상
      * 4 - 슬리팅 정밀도 불량
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "슬러리 점도 이상",
+            "코팅 두께 불량",
+            "오븐 온도 이상",
+            "슬리팅 정밀도 불량"
+    };
     private static final class NgType {
         static final int SLURRY_VISCOSITY = 1;
         static final int COATING_THICKNESS = 2;
@@ -56,6 +62,7 @@ public class ElectrodeUnit01 extends UnitLogic {
         setUnitsPerCycle(1);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

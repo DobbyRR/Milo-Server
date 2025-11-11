@@ -33,6 +33,12 @@ public class ModuleAndPackUnit02 extends UnitLogic {
      * 3 - 용접 저항 불량
      * 4 - 체결 토크 불량
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "셀 정렬 불량",
+            "모듈 저항 불량",
+            "용접 저항 불량",
+            "체결 토크 불량"
+    };
     private static final class NgType {
         static final int CELL_ALIGNMENT = 1;
         static final int MODULE_RESISTANCE = 2;
@@ -54,6 +60,7 @@ public class ModuleAndPackUnit02 extends UnitLogic {
         configureEnergyProfile(0.82, 0.1, 8.2, 1.05);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

@@ -33,6 +33,12 @@ public class FinalInspection02 extends UnitLogic {
      * 3 - 안전 검사 실패
      * 4 - 기능 검사 실패
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "비전 검사 불량",
+            "전기 저항 불량",
+            "안전 검사 실패",
+            "기능 검사 실패"
+    };
     private static final class NgType {
         static final int VISION_FAIL = 1;
         static final int RESISTANCE_FAIL = 2;
@@ -54,6 +60,7 @@ public class FinalInspection02 extends UnitLogic {
         configureEnergyProfile(0.32, 0.04, 3.6, 0.45);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 

@@ -34,6 +34,12 @@ public class AssemblyUnit01 extends UnitLogic {
      * 3 - 탭 용접 저항 과다
      * 4 - 봉입 누설 과다 또는 주입량 과/부족
      */
+    private static final String[] NG_TYPE_NAMES = {
+            "노칭 치수 공차 초과",
+            "적층/권취 정렬 또는 장력 불량",
+            "탭 용접 저항 과다",
+            "봉입 누설 과다 또는 주입량 과/부족"
+    };
     private static final class NgType {
         static final int NOTCH_DIMENSION = 1;
         static final int STACK_OR_TENSION = 2;
@@ -55,6 +61,7 @@ public class AssemblyUnit01 extends UnitLogic {
         configureEnergyProfile(0.7, 0.08, 6.5, 0.8);
 
         setupCommonTelemetry(ns);
+        registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
     }
 
