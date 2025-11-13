@@ -54,7 +54,7 @@ public class AssemblyUnit01 extends UnitLogic {
         this.unitType = "ASSEMBLY";
         this.lineId = "CylindricalLine";
         this.machineNo = 3;
-        this.equipmentId = "F1-CL1-AU001";
+        this.equipmentCode = "F1-CL1-AU001";
         this.processId = "Assembly";
         this.defaultPpm = 80;
         setUnitsPerCycle(1);

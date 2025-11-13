@@ -55,7 +55,7 @@ public class ElectrodeUnit02 extends UnitLogic {
         this.unitType = "ELECTRODE";
         this.lineId = "CylindricalLine";
         this.machineNo = 2;
-        this.equipmentId = "F1-CL1-EU002";
+        this.equipmentCode = "F1-CL1-EU002";
         this.processId = "Electrode";
         configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
         this.defaultPpm = 92;

@@ -53,7 +53,7 @@ public class CellCleaner01 extends UnitLogic {
         this.unitType = "CELL_CLEAN";
         this.lineId = "CylindricalLine";
         this.machineNo = 6;
-        this.equipmentId = "F1-CL1-CCP001";
+        this.equipmentCode = "F1-CL1-CCP001";
         this.processId = "CellCleaning";
         this.defaultPpm = 55;
         setUnitsPerCycle(1);

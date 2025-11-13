@@ -53,7 +53,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         this.unitType = "MODULE_PACK";
         this.lineId = "CylindricalLine";
         this.machineNo = 5;
-        this.equipmentId = "F1-CL1-MAP001";
+        this.equipmentCode = "F1-CL1-MAP001";
         this.processId = "ModulePack";
         this.defaultPpm = 60;
         setUnitsPerCycle(1);

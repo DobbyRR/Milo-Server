@@ -30,7 +30,7 @@ public abstract class UnitLogic {
     protected String unitType;
     protected String lineId;
     protected int machineNo;
-    protected String equipmentId;
+    protected String equipmentCode;
     protected String processId;
     protected String orderNo = "";
     protected String orderItemCode = "";
@@ -99,7 +99,7 @@ public abstract class UnitLogic {
 
     /** 공통 telemetry 등록 (PackML/OEE 기반) */
     protected void setupCommonTelemetry(MultiMachineNameSpace ns) {
-        telemetryNodes.put("equipment_id", ns.addVariableNode(machineFolder, name + ".equipment_id", equipmentId));
+        telemetryNodes.put("equipment_code", ns.addVariableNode(machineFolder, name + ".equipment_code", equipmentCode));
         telemetryNodes.put("process_id", ns.addVariableNode(machineFolder, name + ".process_id", processId));
         telemetryNodes.put("unit_type", ns.addVariableNode(machineFolder, name + ".unit_type", unitType));
         telemetryNodes.put("line_id", ns.addVariableNode(machineFolder,  name + ".line_id", lineId));
@@ -367,8 +367,8 @@ public abstract class UnitLogic {
 
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
-                "{\"equipmentId\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
-                equipmentId == null ? "" : equipmentId,
+                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
+                equipmentCode == null ? "" : equipmentCode,
                 ngType,
                 lastNgName == null ? "" : lastNgName,
                 Math.max(ngQty, 0)
