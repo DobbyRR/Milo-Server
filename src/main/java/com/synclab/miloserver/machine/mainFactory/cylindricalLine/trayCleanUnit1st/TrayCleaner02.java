@@ -50,7 +50,7 @@ public class TrayCleaner02 extends UnitLogic {
         this.unitType = "TRAY_CLEAN";
         this.lineId = "CylindricalLine";
         this.machineNo = 1;
-        this.equipmentId = "TC-02";
+        this.equipmentId = "F1-CL1-TCP002";
         this.processId = "DryClean";
         setUnitsPerCycle(36);
         setDefaultPpm(66);

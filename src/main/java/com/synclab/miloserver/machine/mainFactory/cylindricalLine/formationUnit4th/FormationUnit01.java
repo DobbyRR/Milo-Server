@@ -53,7 +53,7 @@ public class FormationUnit01 extends UnitLogic {
         this.unitType = "FORMATION";
         this.lineId = "CylindricalLine";
         this.machineNo = 4;
-        this.equipmentId = "FU-01";
+        this.equipmentId = "F1-CL1-FAU001";
         this.processId = "Formation";
         this.defaultPpm = 70;
         setUnitsPerCycle(1);
