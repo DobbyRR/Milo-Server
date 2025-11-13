@@ -141,6 +141,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_ng_name", ns.addVariableNode(machineFolder, name + ".order_ng_name", ""));
         telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
+        telemetryNodes.put("ng_event_payload", ns.addVariableNode(machineFolder, name + ".ng_event_payload", ""));
     }
 
     /** Telemetry 값 업데이트 및 구독자 알림 */
@@ -275,6 +276,7 @@ public abstract class UnitLogic {
         updateTrayTelemetry(ns);
         updateNgTelemetry(ns);
         updateNgName(ns, resolveNgTypeName(ngType));
+        publishNgEvent(ns, ngType, 1);
     }
 
     public synchronized boolean hasMoreSerials() {
@@ -361,6 +363,17 @@ public abstract class UnitLogic {
     private void updateNgName(MultiMachineNameSpace ns, String name) {
         lastNgName = name == null ? "" : name;
         updateTelemetry(ns, "order_ng_name", lastNgName);
+    }
+
+    private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
+        String payload = String.format(
+                "{\"equipmentId\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
+                equipmentId == null ? "" : equipmentId,
+                ngType,
+                lastNgName == null ? "" : lastNgName,
+                Math.max(ngQty, 0)
+        );
+        updateTelemetry(ns, "ng_event_payload", payload);
     }
 
     public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,
