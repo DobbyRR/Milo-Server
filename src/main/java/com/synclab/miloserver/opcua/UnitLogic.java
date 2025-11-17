@@ -198,6 +198,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("alarm_occurrence_time", ns.addVariableNode(machineFolder, name + ".alarm_occurrence_time", ""));
         telemetryNodes.put("alarm_release_time", ns.addVariableNode(machineFolder, name + ".alarm_release_time", ""));
         telemetryNodes.put("alarm_active", ns.addVariableNode(machineFolder, name + ".alarm_active", false));
+        telemetryNodes.put("alarm_event_payload", ns.addVariableNode(machineFolder, name + ".alarm_event_payload", ""));
         telemetryNodes.put("energy_usage", ns.addVariableNode(machineFolder, name + ".energy_usage", energyUsage));
         telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, name + ".last_maintenance", lastMaintenance.toString()));
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
@@ -458,6 +459,29 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "ng_event_payload", payload);
     }
 
+    private void updateAlarmPayload(MultiMachineNameSpace ns,
+                                    AlarmDefinition definition,
+                                    OffsetDateTime occurredAt,
+                                    OffsetDateTime clearedAt,
+                                    Integer clearedUserId) {
+        if (definition == null || occurredAt == null) {
+            updateTelemetry(ns, "alarm_event_payload", "");
+            return;
+        }
+        String userValue = clearedUserId == null ? "null" : String.valueOf(clearedUserId);
+        String payload = String.format(
+                "{\"equipmentCode\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
+                equipmentCode == null ? "" : equipmentCode,
+                definition.severity.getLevel(),
+                definition.name == null ? "" : definition.name,
+                definition.severity.getDisplay(),
+                occurredAt.toString(),
+                clearedAt == null ? "" : clearedAt.toString(),
+                userValue
+        );
+        updateTelemetry(ns, "alarm_event_payload", payload);
+    }
+
     public synchronized void beginContinuousOrder(MultiMachineNameSpace ns,
                                                   String newOrderNo,
                                                   int initialTargetQuantity,
@@ -661,6 +685,7 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "alarm_occurrence_time", alarm.occurredAt.toString());
         updateTelemetry(ns, "alarm_release_time", "");
         updateTelemetry(ns, "alarm_active", true);
+        updateAlarmPayload(ns, definition, alarm.occurredAt, null, null);
 
         String targetState = definition.cause == AlarmCause.INTERNAL ? "HOLD" : "SUSPEND";
         if (!targetState.equals(state)) {
@@ -678,6 +703,8 @@ public abstract class UnitLogic {
         activeAlarm.expectedAutoClearMs = 0;
         updateTelemetry(ns, "alarm_release_time", activeAlarm.clearedAt.toString());
         updateTelemetry(ns, "alarm_active", false);
+        int clearedUserId = ThreadLocalRandom.current().nextInt(1, 21);
+        updateAlarmPayload(ns, activeAlarm.definition, activeAlarm.occurredAt, activeAlarm.clearedAt, clearedUserId);
 
         if ("HOLD".equals(state) || "SUSPEND".equals(state)) {
             changeState(ns, "EXECUTE");
