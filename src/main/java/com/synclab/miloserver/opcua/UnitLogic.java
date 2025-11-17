@@ -797,6 +797,16 @@ public abstract class UnitLogic {
     }
 
     protected void changeState(MultiMachineNameSpace ns, String newState) {
+        if (hasActiveAlarm()
+                && ("HOLD".equals(state) || "SUSPEND".equals(state))
+                && !"HOLD".equals(newState)
+                && !"SUSPEND".equals(newState)) {
+            System.out.printf("[%s] Active alarm prevents state change %s -> %s until cleared%n",
+                    name,
+                    state,
+                    newState);
+            return;
+        }
         this.state = newState;
         this.stateStartTime = System.currentTimeMillis();
         updateTelemetry(ns, "state", newState);
