@@ -450,11 +450,12 @@ public abstract class UnitLogic {
 
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
+                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d,\"order_produced_qty\":%d}",
                 equipmentCode == null ? "" : equipmentCode,
                 ngType,
                 lastNgName == null ? "" : lastNgName,
-                Math.max(ngQty, 0)
+                Math.max(ngQty, 0),
+                producedQuantity
         );
         updateTelemetry(ns, "ng_event_payload", payload);
     }
@@ -470,8 +471,9 @@ public abstract class UnitLogic {
         }
         String userValue = clearedUserId == null ? "null" : String.valueOf(clearedUserId);
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
+                "{\"equipmentCode\":\"%s\",\"alarm_code\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
                 equipmentCode == null ? "" : equipmentCode,
+                definition.code == null ? "" : definition.code,
                 definition.severity.getLevel(),
                 definition.name == null ? "" : definition.name,
                 definition.severity.getDisplay(),
