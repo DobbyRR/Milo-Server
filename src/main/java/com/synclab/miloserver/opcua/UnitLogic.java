@@ -225,6 +225,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
         telemetryNodes.put("ng_event_payload", ns.addVariableNode(machineFolder, name + ".ng_event_payload", ""));
+        telemetryNodes.put("order_summary_payload", ns.addVariableNode(machineFolder, name + ".order_summary_payload", ""));
     }
 
     /** Telemetry 값 업데이트 및 구독자 알림 */
@@ -254,6 +255,7 @@ public abstract class UnitLogic {
     protected void updateProducedQuantity(MultiMachineNameSpace ns, int newQty) {
         producedQuantity = newQty;
         updateTelemetry(ns, "order_produced_qty", producedQuantity);
+        updateOrderSummaryPayload(ns);
         if (lineController != null) {
             lineController.onMachineProduced(this, producedQuantity, targetQuantity);
         }
@@ -264,6 +266,7 @@ public abstract class UnitLogic {
         this.ngCount = ngValue;
         updateTelemetry(ns, "order_ok_qty", okCount);
         updateTelemetry(ns, "order_ng_qty", ngCount);
+        updateOrderSummaryPayload(ns);
         if (lineController != null) {
             lineController.onMachineQualityChanged(this, okCount, ngCount);
         }
@@ -450,13 +453,24 @@ public abstract class UnitLogic {
 
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
+                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d,\"order_produced_qty\":%d}",
                 equipmentCode == null ? "" : equipmentCode,
                 ngType,
                 lastNgName == null ? "" : lastNgName,
-                Math.max(ngQty, 0)
+                Math.max(ngQty, 0),
+                producedQuantity
         );
         updateTelemetry(ns, "ng_event_payload", payload);
+    }
+
+    private void updateOrderSummaryPayload(MultiMachineNameSpace ns) {
+        String payload = String.format(
+                "{\"equipmentCode\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d}",
+                equipmentCode == null ? "" : equipmentCode,
+                producedQuantity,
+                ngCount
+        );
+        updateTelemetry(ns, "order_summary_payload", payload);
     }
 
     private void updateAlarmPayload(MultiMachineNameSpace ns,
