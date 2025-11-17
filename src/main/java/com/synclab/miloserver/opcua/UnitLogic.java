@@ -450,12 +450,11 @@ public abstract class UnitLogic {
 
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d,\"order_produced_qty\":%d}",
+                "{\"equipmentCode\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
                 equipmentCode == null ? "" : equipmentCode,
                 ngType,
                 lastNgName == null ? "" : lastNgName,
-                Math.max(ngQty, 0),
-                producedQuantity
+                Math.max(ngQty, 0)
         );
         updateTelemetry(ns, "ng_event_payload", payload);
     }
