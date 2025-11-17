@@ -59,6 +59,7 @@ public class ModuleAndPackUnit02 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.82, 0.1, 8.2, 1.05);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class ModuleAndPackUnit02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -124,6 +126,10 @@ public class ModuleAndPackUnit02 extends UnitLogic {
                     changeState(ns, "IDLE");
                 }
                 break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
+                break;
         }
     }
 
@@ -157,6 +163,31 @@ public class ModuleAndPackUnit02 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition bmsFault = registerAlarm(
+                "MAP02_BMS_FAULT",
+                "BMS 통신 오류",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition overTorque = registerAlarm(
+                "MAP02_OVERTORQUE",
+                "체결 토크 과다",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition supplyWait = registerAlarm(
+                "MAP02_SUPPLY_WAIT",
+                "케이스 공급 대기",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(bmsFault, 0.0015, 6000, 13000);
+        registerAlarmScenario(overTorque, 0.0019, 5000, 11000);
+        registerAlarmScenario(supplyWait, 0.0012, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

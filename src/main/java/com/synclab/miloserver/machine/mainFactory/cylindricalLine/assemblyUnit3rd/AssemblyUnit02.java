@@ -60,6 +60,7 @@ public class AssemblyUnit02 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.72, 0.08, 6.8, 0.85);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -98,6 +99,7 @@ public class AssemblyUnit02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -132,6 +134,10 @@ public class AssemblyUnit02 extends UnitLogic {
                     changeState(ns, "IDLE");
                 }
                 break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
+                break;
         }
     }
 
@@ -165,6 +171,38 @@ public class AssemblyUnit02 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition stackShift = registerAlarm(
+                "AU02_STACK_SHIFT",
+                "적층 위치 편차",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition welderInterlock = registerAlarm(
+                "AU02_WELDER_INTERLOCK",
+                "탭 용접 인터락",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition gasLeak = registerAlarm(
+                "AU02_GAS_LEAK",
+                "충전 셀 가스 감지",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition feederDelay = registerAlarm(
+                "AU02_FEEDER_DELAY",
+                "외부 모듈 공급 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(stackShift, 0.0018, 5000, 11000);
+        registerAlarmScenario(welderInterlock, 0.0013, 6000, 12000);
+        registerAlarmScenario(gasLeak, 0.0009, 9000, 18000);
+        registerAlarmScenario(feederDelay, 0.0011, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

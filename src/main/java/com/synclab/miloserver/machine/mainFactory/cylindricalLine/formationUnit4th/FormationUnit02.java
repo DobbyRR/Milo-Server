@@ -60,6 +60,7 @@ public class FormationUnit02 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(1.4, 0.18, 14.5, 1.6);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -91,6 +92,7 @@ public class FormationUnit02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -123,6 +125,10 @@ public class FormationUnit02 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -157,6 +163,31 @@ public class FormationUnit02 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition thermalRunaway = registerAlarm(
+                "FAU02_THERMAL_RUNAWAY",
+                "셀 열폭주 조짐",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition chargerAcFail = registerAlarm(
+                "FAU02_AC_FAIL",
+                "충방전 전원 상실",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition upstreamHold = registerAlarm(
+                "FAU02_UPSTREAM_HOLD",
+                "전공정 이송 중단",
+                AlarmSeverity.WARNING,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(thermalRunaway, 0.0010, 9000, 20000);
+        registerAlarmScenario(chargerAcFail, 0.0014, 7000, 15000);
+        registerAlarmScenario(upstreamHold, 0.0017, 5000, 10000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

@@ -59,6 +59,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.8, 0.1, 8.0, 1.0);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -124,6 +126,10 @@ public class ModuleAndPackUnit01 extends UnitLogic {
                     changeState(ns, "IDLE");
                 }
                 break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
+                break;
         }
     }
 
@@ -157,6 +163,31 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition weldStop = registerAlarm(
+                "MAP01_WELDER_TRIP",
+                "용접기 인터락 정지",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition torqueTool = registerAlarm(
+                "MAP01_TORQUE_FAIL",
+                "토크툴 캘리브레이션 오류",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition agvDelay = registerAlarm(
+                "MAP01_AGV_DELAY",
+                "AGV 모듈 공급 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(weldStop, 0.0016, 6000, 13000);
+        registerAlarmScenario(torqueTool, 0.0019, 5000, 11000);
+        registerAlarmScenario(agvDelay, 0.0011, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

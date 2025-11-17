@@ -59,6 +59,7 @@ public class FinalInspection01 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.3, 0.04, 3.5, 0.5);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class FinalInspection01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -123,6 +125,10 @@ public class FinalInspection01 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -230,6 +236,31 @@ public class FinalInspection01 extends UnitLogic {
         } else {
             updateTelemetry(ns, "current_serial", "");
         }
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition cameraFault = registerAlarm(
+                "FIP01_CAMERA_FAULT",
+                "비전 카메라 통신 장애",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition hvLeak = registerAlarm(
+                "FIP01_HV_FAIL",
+                "고전압 안전 차단",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition mesDelay = registerAlarm(
+                "FIP01_MES_DELAY",
+                "MES 검사 승인 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(cameraFault, 0.0018, 5000, 11000);
+        registerAlarmScenario(hvLeak, 0.0012, 8000, 16000);
+        registerAlarmScenario(mesDelay, 0.0010, 3000, 7000);
     }
 
     private void sampleProcessMetrics() {

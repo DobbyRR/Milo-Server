@@ -59,6 +59,7 @@ public class FinalInspection02 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.32, 0.04, 3.6, 0.45);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class FinalInspection02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -123,6 +125,10 @@ public class FinalInspection02 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -230,6 +236,31 @@ public class FinalInspection02 extends UnitLogic {
         } else {
             updateTelemetry(ns, "current_serial", "");
         }
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition lightingFault = registerAlarm(
+                "FIP02_LIGHT_FAIL",
+                "비전 조명 공급 이상",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition socketBurn = registerAlarm(
+                "FIP02_SOCKET_BURN",
+                "전기 테스트 소켓 과열",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition palletJam = registerAlarm(
+                "FIP02_PALLET_JAM",
+                "외부 팔레트 투입 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(lightingFault, 0.0019, 5000, 11000);
+        registerAlarmScenario(socketBurn, 0.0013, 7000, 14000);
+        registerAlarmScenario(palletJam, 0.0010, 3000, 7000);
     }
 
     private void sampleProcessMetrics() {

@@ -60,6 +60,7 @@ public class AssemblyUnit01 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.7, 0.08, 6.5, 0.8);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -98,6 +99,7 @@ public class AssemblyUnit01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -132,6 +134,10 @@ public class AssemblyUnit01 extends UnitLogic {
                     changeState(ns, "IDLE");
                 }
                 break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
+                break;
         }
     }
 
@@ -165,6 +171,31 @@ public class AssemblyUnit01 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition alignmentDrift = registerAlarm(
+                "AU01_ALIGN_DRIFT",
+                "스택 정렬 센서 편차",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition electrolyteLeak = registerAlarm(
+                "AU01_ELECTROLYTE_LEAK",
+                "전해액 누설 감지",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition kitDelay = registerAlarm(
+                "AU01_KIT_DELAY",
+                "부품 키트 공급 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(alignmentDrift, 0.0017, 5000, 11000);
+        registerAlarmScenario(electrolyteLeak, 0.0012, 8000, 16000);
+        registerAlarmScenario(kitDelay, 0.0010, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

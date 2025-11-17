@@ -59,6 +59,7 @@ public class CellCleaner01 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.5, 0.07, 5.0, 0.6);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class CellCleaner01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -122,6 +124,10 @@ public class CellCleaner01 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -156,6 +162,31 @@ public class CellCleaner01 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition plasmaFault = registerAlarm(
+                "CC01_PLASMA_FAULT",
+                "플라즈마 파워 이상",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition heaterOver = registerAlarm(
+                "CC01_HEATER_OVER",
+                "건조 히터 과온",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition supplyWait = registerAlarm(
+                "CC01_SUPPLY_WAIT",
+                "상위 공정 대기 상태",
+                AlarmSeverity.WARNING,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(plasmaFault, 0.0016, 6000, 12000);
+        registerAlarmScenario(heaterOver, 0.0010, 8000, 16000);
+        registerAlarmScenario(supplyWait, 0.0018, 4000, 9000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

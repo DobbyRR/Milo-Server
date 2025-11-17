@@ -56,6 +56,7 @@ public class TrayCleaner01 extends UnitLogic {
         setDefaultPpm(72);
         configureEnergyProfile(0.15, 0.03, 3.0, 0.4);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -101,6 +102,7 @@ public class TrayCleaner01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 simulateIdle(ns);
@@ -133,6 +135,10 @@ public class TrayCleaner01 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -216,6 +222,31 @@ public class TrayCleaner01 extends UnitLogic {
         airPressureBar = 5.6 + (rnd.nextDouble() - 0.5) * 0.5;
         transferSpeedMps = 0.23 + (rnd.nextDouble() - 0.5) * 0.06;
         transferTimeSec = CLEANING_DURATION_SEC + (rnd.nextDouble() - 0.5);
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition brushOverload = registerAlarm(
+                "TC01_BRUSH_OC",
+                "브러시 모터 과전류",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition rinsePressureLow = registerAlarm(
+                "TC01_RINSE_LOW",
+                "세정 노즐 압력 저하",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition upstreamDelay = registerAlarm(
+                "TC01_UPSTREAM_WAIT",
+                "상위 설비 공급 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(brushOverload, 0.0015, 6000, 14000);
+        registerAlarmScenario(rinsePressureLow, 0.0020, 4000, 9000);
+        registerAlarmScenario(upstreamDelay, 0.0012, 3000, 6000);
     }
 
     private void evaluateTrayResult() {

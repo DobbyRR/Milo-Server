@@ -59,6 +59,7 @@ public class FormationUnit01 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(1.5, 0.2, 15.0, 1.8);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class FormationUnit01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -122,6 +124,10 @@ public class FormationUnit01 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -156,6 +162,31 @@ public class FormationUnit01 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition chamberOverTemp = registerAlarm(
+                "FAU01_CHAMBER_TEMP",
+                "포메이션 챔버 과온",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition powerDrop = registerAlarm(
+                "FAU01_POWER_DROP",
+                "충방전 전원 이상",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition bufferWait = registerAlarm(
+                "FAU01_BUFFER_WAIT",
+                "전처리 버퍼 대기",
+                AlarmSeverity.WARNING,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(chamberOverTemp, 0.0011, 9000, 20000);
+        registerAlarmScenario(powerDrop, 0.0015, 7000, 15000);
+        registerAlarmScenario(bufferWait, 0.0018, 5000, 10000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

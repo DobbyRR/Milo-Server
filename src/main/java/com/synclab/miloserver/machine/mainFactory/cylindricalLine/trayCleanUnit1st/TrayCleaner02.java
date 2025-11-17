@@ -56,6 +56,7 @@ public class TrayCleaner02 extends UnitLogic {
         setDefaultPpm(66);
         configureEnergyProfile(0.15, 0.03, 2.8, 0.35);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -101,6 +102,7 @@ public class TrayCleaner02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 simulateIdle(ns);
@@ -133,6 +135,10 @@ public class TrayCleaner02 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -183,6 +189,31 @@ public class TrayCleaner02 extends UnitLogic {
         updateTelemetry(ns, "air_pressure", airPressureBar);
         updateTelemetry(ns, "speed", transferSpeedMps);
         updateTelemetry(ns, "transfer_time", transferTimeSec);
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition ionizerFault = registerAlarm(
+                "TC02_IONIZER_FAULT",
+                "이오나이저 방전 이상",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition filterClog = registerAlarm(
+                "TC02_FILTER_CLOG",
+                "프리필터 막힘",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition downstreamBlock = registerAlarm(
+                "TC02_DOWNSTREAM_WAIT",
+                "하위 설비 적재 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(ionizerFault, 0.0013, 7000, 15000);
+        registerAlarmScenario(filterClog, 0.0018, 5000, 11000);
+        registerAlarmScenario(downstreamBlock, 0.0010, 3000, 7000);
     }
 
     private void concludeCleaning(MultiMachineNameSpace ns) {

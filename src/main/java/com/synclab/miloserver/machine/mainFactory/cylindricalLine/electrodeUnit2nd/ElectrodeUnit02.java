@@ -61,6 +61,7 @@ public class ElectrodeUnit02 extends UnitLogic {
         this.defaultPpm = 92;
         setUnitsPerCycle(1);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -100,6 +101,7 @@ public class ElectrodeUnit02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 simulateIdle(ns);
@@ -133,6 +135,10 @@ public class ElectrodeUnit02 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -251,6 +257,31 @@ public class ElectrodeUnit02 extends UnitLogic {
         } else {
             updateTelemetry(ns, "current_serial", "");
         }
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition coaterStop = registerAlarm(
+                "EU02_COATER_STOP",
+                "코터 구동 정지",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition dryerCoolingFail = registerAlarm(
+                "EU02_DRYER_COOLING",
+                "건조 존 냉각 이상",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition bufferEmpty = registerAlarm(
+                "EU02_BUFFER_EMPTY",
+                "슬러리 버퍼 고갈",
+                AlarmSeverity.WARNING,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(coaterStop, 0.0015, 7000, 15000);
+        registerAlarmScenario(dryerCoolingFail, 0.0010, 9000, 20000);
+        registerAlarmScenario(bufferEmpty, 0.0018, 4000, 9000);
     }
 
     private void sampleProcessMetrics() {

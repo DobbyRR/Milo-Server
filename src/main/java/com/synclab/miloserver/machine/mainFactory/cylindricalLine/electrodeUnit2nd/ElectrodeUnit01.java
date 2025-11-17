@@ -61,6 +61,7 @@ public class ElectrodeUnit01 extends UnitLogic {
         this.defaultPpm = 90;
         setUnitsPerCycle(1);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -100,6 +101,7 @@ public class ElectrodeUnit01 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 simulateIdle(ns);
@@ -133,6 +135,10 @@ public class ElectrodeUnit01 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -251,6 +257,31 @@ public class ElectrodeUnit01 extends UnitLogic {
         } else {
             updateTelemetry(ns, "current_serial", "");
         }
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition mixerTrip = registerAlarm(
+                "EU01_MIXER_TRIP",
+                "믹서 구동 과부하",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition ovenOverHeat = registerAlarm(
+                "EU01_OVEN_OVERHEAT",
+                "건조 오븐 과온",
+                AlarmSeverity.EMERGENCY,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition slurryShortage = registerAlarm(
+                "EU01_SLURRY_SHORT",
+                "슬러리 공급 부족",
+                AlarmSeverity.WARNING,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(mixerTrip, 0.0014, 7000, 15000);
+        registerAlarmScenario(ovenOverHeat, 0.0010, 9000, 20000);
+        registerAlarmScenario(slurryShortage, 0.0018, 4000, 9000);
     }
 
     private void sampleProcessMetrics() {

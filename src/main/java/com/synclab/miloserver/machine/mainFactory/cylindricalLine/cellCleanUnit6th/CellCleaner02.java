@@ -59,6 +59,7 @@ public class CellCleaner02 extends UnitLogic {
         setUnitsPerCycle(1);
         configureEnergyProfile(0.52, 0.07, 5.2, 0.65);
 
+        configureAlarms();
         setupCommonTelemetry(ns);
         registerNgTypeNames(NG_TYPE_NAMES);
         setupVariables(ns);
@@ -90,6 +91,7 @@ public class CellCleaner02 extends UnitLogic {
 
     @Override
     public void simulateStep(MultiMachineNameSpace ns) {
+        processAlarms(ns);
         switch (state) {
             case "IDLE":
                 applyIdleDrift(ns);
@@ -122,6 +124,10 @@ public class CellCleaner02 extends UnitLogic {
                 if (timeInState(1000)) {
                     changeState(ns, "IDLE");
                 }
+                break;
+            case "HOLD":
+            case "SUSPEND":
+                applyIdleDrift(ns);
                 break;
         }
     }
@@ -156,6 +162,31 @@ public class CellCleaner02 extends UnitLogic {
         }
 
         updateTelemetry(ns, "t_in_cycle_sec", Math.min(cycleElapsed, TOTAL_CYCLE_TIME_SEC));
+    }
+
+    private void configureAlarms() {
+        AlarmDefinition jetPressureLow = registerAlarm(
+                "CC02_JET_PRESS_LOW",
+                "제트 클리닝 압력 저하",
+                AlarmSeverity.WARNING,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition heaterTrip = registerAlarm(
+                "CC02_HEATER_TRIP",
+                "건조 히터 트립",
+                AlarmSeverity.FAULT,
+                AlarmCause.INTERNAL
+        );
+        AlarmDefinition downstreamWait = registerAlarm(
+                "CC02_DOWNSTREAM_WAIT",
+                "하위 공정 적재 지연",
+                AlarmSeverity.NOTICE,
+                AlarmCause.EXTERNAL
+        );
+
+        registerAlarmScenario(jetPressureLow, 0.0017, 5000, 11000);
+        registerAlarmScenario(heaterTrip, 0.0012, 7000, 15000);
+        registerAlarmScenario(downstreamWait, 0.0013, 4000, 9000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

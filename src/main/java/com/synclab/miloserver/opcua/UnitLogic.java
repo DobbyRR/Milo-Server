@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -75,6 +76,81 @@ public abstract class UnitLogic {
     protected double operatingEnergyJitter = 0.2;
     protected double energyUsageScale = 10.0;
 
+    public enum AlarmSeverity {
+        NOTICE(1, "NOTICE"),
+        WARNING(2, "WARNING"),
+        FAULT(3, "FAULT"),
+        EMERGENCY(4, "EMERGENCY");
+
+        private final int level;
+        private final String display;
+
+        AlarmSeverity(int level, String display) {
+            this.level = level;
+            this.display = display;
+        }
+
+        public int getLevel() {
+            return level;
+        }
+
+        public String getDisplay() {
+            return display;
+        }
+    }
+
+    public enum AlarmCause {
+        INTERNAL,
+        EXTERNAL
+    }
+
+    protected static final class AlarmDefinition {
+        private final String code;
+        private final String name;
+        private final AlarmSeverity severity;
+        private final AlarmCause cause;
+
+        private AlarmDefinition(String code, String name, AlarmSeverity severity, AlarmCause cause) {
+            this.code = code;
+            this.name = name;
+            this.severity = severity;
+            this.cause = cause;
+        }
+    }
+
+    protected static final class AlarmScenario {
+        private final AlarmDefinition definition;
+        private final double triggerProbabilityPerSecond;
+        private final long minDurationMs;
+        private final long maxDurationMs;
+
+        private AlarmScenario(AlarmDefinition definition,
+                              double triggerProbabilityPerSecond,
+                              long minDurationMs,
+                              long maxDurationMs) {
+            this.definition = definition;
+            this.triggerProbabilityPerSecond = triggerProbabilityPerSecond;
+            this.minDurationMs = minDurationMs;
+            this.maxDurationMs = maxDurationMs;
+        }
+    }
+
+    protected static final class ActiveAlarm {
+        private final AlarmDefinition definition;
+        private OffsetDateTime occurredAt;
+        private OffsetDateTime clearedAt;
+        private boolean active;
+        private long expectedAutoClearMs;
+
+        private ActiveAlarm(AlarmDefinition definition) {
+            this.definition = definition;
+        }
+    }
+
+    protected final Map<String, AlarmDefinition> alarmDefinitions = new HashMap<>();
+    protected final List<AlarmScenario> alarmScenarios = new ArrayList<>();
+    protected ActiveAlarm activeAlarm;
+
     protected final Map<String, UaVariableNode> telemetryNodes = new HashMap<>();
     private final ScheduledExecutorService simulationExecutor =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -116,6 +192,12 @@ public abstract class UnitLogic {
         telemetryNodes.put("OEE", ns.addVariableNode(machineFolder, name + ".OEE", oee));
         telemetryNodes.put("alarm_code", ns.addVariableNode(machineFolder,  name + ".alarm_code", alarmCode));
         telemetryNodes.put("alarm_level", ns.addVariableNode(machineFolder,  name + ".alarm_level", alarmLevel));
+        telemetryNodes.put("alarm_name", ns.addVariableNode(machineFolder, name + ".alarm_name", ""));
+        telemetryNodes.put("alarm_type", ns.addVariableNode(machineFolder, name + ".alarm_type", 0));
+        telemetryNodes.put("alarm_cause", ns.addVariableNode(machineFolder, name + ".alarm_cause", ""));
+        telemetryNodes.put("alarm_occurrence_time", ns.addVariableNode(machineFolder, name + ".alarm_occurrence_time", ""));
+        telemetryNodes.put("alarm_release_time", ns.addVariableNode(machineFolder, name + ".alarm_release_time", ""));
+        telemetryNodes.put("alarm_active", ns.addVariableNode(machineFolder, name + ".alarm_active", false));
         telemetryNodes.put("energy_usage", ns.addVariableNode(machineFolder, name + ".energy_usage", energyUsage));
         telemetryNodes.put("last_maintenance", ns.addVariableNode(machineFolder, name + ".last_maintenance", lastMaintenance.toString()));
         telemetryNodes.put("tray_id", ns.addVariableNode(machineFolder, name + ".tray_id", trayId));
@@ -496,6 +578,114 @@ public abstract class UnitLogic {
             default:
                 return false;
         }
+    }
+
+    protected AlarmDefinition registerAlarm(String code,
+                                            String name,
+                                            AlarmSeverity severity,
+                                            AlarmCause cause) {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("alarm code is required");
+        }
+        AlarmDefinition definition = new AlarmDefinition(
+                code.trim(),
+                name == null ? "" : name.trim(),
+                severity == null ? AlarmSeverity.NOTICE : severity,
+                cause == null ? AlarmCause.INTERNAL : cause
+        );
+        alarmDefinitions.put(definition.code, definition);
+        return definition;
+    }
+
+    protected void registerAlarmScenario(AlarmDefinition definition,
+                                         double triggerProbabilityPerSecond,
+                                         long minDurationMs,
+                                         long maxDurationMs) {
+        if (definition == null) {
+            return;
+        }
+        double sanitizedProbability = Math.max(0.0, Math.min(1.0, triggerProbabilityPerSecond));
+        long sanitizedMin = Math.max(1000L, minDurationMs);
+        long sanitizedMax = Math.max(sanitizedMin, maxDurationMs);
+        alarmScenarios.add(new AlarmScenario(definition, sanitizedProbability, sanitizedMin, sanitizedMax));
+    }
+
+    protected void processAlarms(MultiMachineNameSpace ns) {
+        long now = System.currentTimeMillis();
+        if (activeAlarm != null && activeAlarm.active) {
+            if (activeAlarm.expectedAutoClearMs > 0 && now >= activeAlarm.expectedAutoClearMs) {
+                clearActiveAlarm(ns);
+            }
+            return;
+        }
+        if (!"EXECUTE".equals(state) || alarmScenarios.isEmpty()) {
+            return;
+        }
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (AlarmScenario scenario : alarmScenarios) {
+            if (scenario == null || scenario.definition == null) {
+                continue;
+            }
+            if (random.nextDouble() < scenario.triggerProbabilityPerSecond) {
+                ActiveAlarm triggered = triggerAlarm(ns, scenario.definition);
+                if (triggered != null) {
+                    long extra = scenario.maxDurationMs > scenario.minDurationMs
+                            ? random.nextLong(scenario.maxDurationMs - scenario.minDurationMs + 1)
+                            : 0L;
+                    triggered.expectedAutoClearMs = now + scenario.minDurationMs + extra;
+                }
+                break;
+            }
+        }
+    }
+
+    protected ActiveAlarm triggerAlarm(MultiMachineNameSpace ns, AlarmDefinition definition) {
+        if (definition == null) {
+            return null;
+        }
+        if (activeAlarm != null && activeAlarm.active) {
+            return activeAlarm;
+        }
+        ActiveAlarm alarm = new ActiveAlarm(definition);
+        alarm.active = true;
+        alarm.occurredAt = OffsetDateTime.now();
+        alarm.expectedAutoClearMs = 0;
+        activeAlarm = alarm;
+        this.alarmCode = definition.code;
+        this.alarmLevel = definition.severity.getDisplay();
+        updateTelemetry(ns, "alarm_code", alarmCode);
+        updateTelemetry(ns, "alarm_level", alarmLevel);
+        updateTelemetry(ns, "alarm_name", definition.name);
+        updateTelemetry(ns, "alarm_type", definition.severity.getLevel());
+        updateTelemetry(ns, "alarm_cause", definition.cause.name());
+        updateTelemetry(ns, "alarm_occurrence_time", alarm.occurredAt.toString());
+        updateTelemetry(ns, "alarm_release_time", "");
+        updateTelemetry(ns, "alarm_active", true);
+
+        String targetState = definition.cause == AlarmCause.INTERNAL ? "HOLD" : "SUSPEND";
+        if (!targetState.equals(state)) {
+            changeState(ns, targetState);
+        }
+        return alarm;
+    }
+
+    protected void clearActiveAlarm(MultiMachineNameSpace ns) {
+        if (activeAlarm == null || !activeAlarm.active) {
+            return;
+        }
+        activeAlarm.active = false;
+        activeAlarm.clearedAt = OffsetDateTime.now();
+        activeAlarm.expectedAutoClearMs = 0;
+        updateTelemetry(ns, "alarm_release_time", activeAlarm.clearedAt.toString());
+        updateTelemetry(ns, "alarm_active", false);
+
+        if ("HOLD".equals(state) || "SUSPEND".equals(state)) {
+            changeState(ns, "EXECUTE");
+        }
+    }
+
+    protected boolean hasActiveAlarm() {
+        return activeAlarm != null && activeAlarm.active;
     }
 
     protected void handleStartCommand(MultiMachineNameSpace ns, String orderId, int targetQty, int targetPpm, String itemCode) {
