@@ -9,6 +9,7 @@ import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -29,6 +30,7 @@ public class ProductionLineController {
     private final MultiMachineNameSpace namespace;
     private final String lineName;
     private final UaFolderNode lineFolder;
+    private final String lineCode;
 
     private final Map<Integer, StageState> stages = new HashMap<>();
     private final List<Integer> stageOrder = new ArrayList<>();
@@ -57,11 +59,14 @@ public class ProductionLineController {
     private long serialCounter = 1L;
     private String serialPrefix = "CC-A";
     private String orderItemCode = "";
+    private OffsetDateTime executeStatusStartedAt;
+    private OffsetDateTime waitingAckStatusAt;
 
     public ProductionLineController(MultiMachineNameSpace namespace, String lineName, UaFolderNode lineFolder) {
         this.namespace = namespace;
         this.lineName = lineName;
         this.lineFolder = lineFolder;
+        this.lineCode = extractLineCode(lineName);
         initializeNodes();
     }
 
@@ -73,6 +78,8 @@ public class ProductionLineController {
         nodes.put("order_status", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_status"), orderStatus));
         nodes.put("mes_ack_pending", namespace.addVariableNode(lineFolder, lineQualifiedName(".mes_ack_pending"), awaitingAck));
         nodes.put("order_ppm", namespace.addVariableNode(lineFolder, lineQualifiedName(".order_ppm"), linePpm));
+        nodes.put("production_performance_payload",
+                namespace.addVariableNode(lineFolder, lineQualifiedName(".production_performance_payload"), ""));
 
         UaVariableNode commandNode = namespace.addVariableNode(lineFolder, lineQualifiedName(".command"), "");
         commandNode.setDisplayName(LocalizedText.english(lineName + " Command"));
@@ -99,6 +106,14 @@ public class ProductionLineController {
             }
         });
         nodes.put("command", commandNode);
+    }
+
+    private static String extractLineCode(String fullName) {
+        int dotIdx = fullName.lastIndexOf('.');
+        if (dotIdx >= 0 && dotIdx < fullName.length() - 1) {
+            return fullName.substring(dotIdx + 1);
+        }
+        return fullName;
     }
 
     private String lineQualifiedName(String suffix) {
@@ -214,6 +229,7 @@ public class ProductionLineController {
         updateLineTelemetry();
         machines().forEach(machine -> machine.updateOrderItemCode(namespace, sanitizedItemCode));
         updateNode("order_produced_qty", 0);
+        updateNode("production_performance_payload", "");
 
         StageState firstStage = stages.get(STAGE_TRAY_CLEAN);
         if (firstStage == null) {
@@ -227,6 +243,8 @@ public class ProductionLineController {
         dispatchStage(STAGE_TRAY_CLEAN);
         ensureUpstreamSupply();
         orderStatus = "EXECUTE";
+        executeStatusStartedAt = OffsetDateTime.now();
+        waitingAckStatusAt = null;
         updateLineTelemetry();
     }
 
@@ -365,7 +383,9 @@ public class ProductionLineController {
         if (lineDone && allTraysCompleted()) {
             awaitingAck = true;
             orderStatus = "WAITING_ACK";
+            waitingAckStatusAt = OffsetDateTime.now();
             updateLineTelemetry();
+            publishProductionPerformancePayload();
         } else {
             dispatchStage(stage.stageNo);
             ensureUpstreamSupply();
@@ -492,6 +512,33 @@ public class ProductionLineController {
         updateNode("order_ppm", linePpm);
         updateNode("order_status", orderStatus);
         updateNode("mes_ack_pending", awaitingAck);
+    }
+
+    private void publishProductionPerformancePayload() {
+        String execTime = executeStatusStartedAt == null ? "" : executeStatusStartedAt.toString();
+        String waitingTime = waitingAckStatusAt == null ? "" : waitingAckStatusAt.toString();
+        int totalNg = calculateTotalNgCount();
+        String payload = String.format(
+                "{\"order_no\":\"%s\",\"line_code\":\"%s\",\"item_code\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d,\"execute_at\":\"%s\",\"waiting_ack_at\":\"%s\"}",
+                orderNo == null ? "" : orderNo,
+                lineCode,
+                orderItemCode == null ? "" : orderItemCode,
+                finalOkTotal,
+                totalNg,
+                execTime,
+                waitingTime
+        );
+        updateNode("production_performance_payload", payload);
+    }
+
+    private int calculateTotalNgCount() {
+        int total = 0;
+        for (Integer value : machineNgCounts.values()) {
+            if (value != null) {
+                total += value;
+            }
+        }
+        return total;
     }
 
     private void updateNode(String key, Object value) {
