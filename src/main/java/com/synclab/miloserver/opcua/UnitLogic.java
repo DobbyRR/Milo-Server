@@ -248,8 +248,12 @@ public abstract class UnitLogic {
     }
 
     protected void updateOrderStatus(MultiMachineNameSpace ns, String status) {
+        String previousStatus = this.orderStatus;
         this.orderStatus = status;
         updateTelemetry(ns, "order_status", status);
+        if ("WAITING_ACK".equals(status) && !"WAITING_ACK".equals(previousStatus)) {
+            updateOrderSummaryPayload(ns);
+        }
     }
 
     protected void updateProducedQuantity(MultiMachineNameSpace ns, int newQty) {
