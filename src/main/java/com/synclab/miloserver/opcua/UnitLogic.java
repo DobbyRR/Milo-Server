@@ -803,6 +803,10 @@ public abstract class UnitLogic {
         return lineController;
     }
 
+    public String getUnitType() {
+        return unitType;
+    }
+
     protected synchronized void startSimulation(MultiMachineNameSpace ns) {
         stopRequested.set(false);
         if (simulationTask == null || simulationTask.isCancelled() || simulationTask.isDone()) {

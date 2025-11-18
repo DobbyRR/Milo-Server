@@ -533,7 +533,15 @@ public class ProductionLineController {
 
     private int calculateTotalNgCount() {
         int total = 0;
-        for (Integer value : machineNgCounts.values()) {
+        for (Map.Entry<UnitLogic, Integer> entry : machineNgCounts.entrySet()) {
+            UnitLogic machine = entry.getKey();
+            if (machine != null) {
+                String type = machine.getUnitType();
+                if (type != null && "TRAY_CLEAN".equalsIgnoreCase(type.trim())) {
+                    continue;
+                }
+            }
+            Integer value = entry.getValue();
             if (value != null) {
                 total += value;
             }
