@@ -259,7 +259,9 @@ public abstract class UnitLogic {
     protected void updateProducedQuantity(MultiMachineNameSpace ns, int newQty) {
         producedQuantity = newQty;
         updateTelemetry(ns, "order_produced_qty", producedQuantity);
-        updateOrderSummaryPayload(ns);
+        if (targetQuantity > 0 && producedQuantity == targetQuantity) {
+            updateOrderSummaryPayload(ns);
+        }
         if (lineController != null) {
             lineController.onMachineProduced(this, producedQuantity, targetQuantity);
         }
@@ -270,7 +272,6 @@ public abstract class UnitLogic {
         this.ngCount = ngValue;
         updateTelemetry(ns, "order_ok_qty", okCount);
         updateTelemetry(ns, "order_ng_qty", ngCount);
-        updateOrderSummaryPayload(ns);
         if (lineController != null) {
             lineController.onMachineQualityChanged(this, okCount, ngCount);
         }
