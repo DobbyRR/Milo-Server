@@ -185,9 +185,9 @@ public class ModuleAndPackUnit02 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(bmsFault, 0.0015, 6000, 13000);
-        registerAlarmScenario(overTorque, 0.0019, 5000, 11000);
-        registerAlarmScenario(supplyWait, 0.0012, 3000, 7000);
+        registerAlarmScenario(bmsFault, 0.00015, 6000, 13000);
+        registerAlarmScenario(overTorque, 0.00019, 5000, 11000);
+        registerAlarmScenario(supplyWait, 0.00012, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

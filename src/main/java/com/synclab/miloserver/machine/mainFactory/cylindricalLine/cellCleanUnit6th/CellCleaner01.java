@@ -184,9 +184,9 @@ public class CellCleaner01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(plasmaFault, 0.0016, 6000, 12000);
-        registerAlarmScenario(heaterOver, 0.0010, 8000, 16000);
-        registerAlarmScenario(supplyWait, 0.0018, 4000, 9000);
+        registerAlarmScenario(plasmaFault, 0.00016, 6000, 12000);
+        registerAlarmScenario(heaterOver, 0.00010, 8000, 16000);
+        registerAlarmScenario(supplyWait, 0.00018, 4000, 9000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

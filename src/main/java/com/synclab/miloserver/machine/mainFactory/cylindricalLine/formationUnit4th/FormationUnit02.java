@@ -185,9 +185,9 @@ public class FormationUnit02 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(thermalRunaway, 0.0010, 9000, 20000);
-        registerAlarmScenario(chargerAcFail, 0.0014, 7000, 15000);
-        registerAlarmScenario(upstreamHold, 0.0017, 5000, 10000);
+        registerAlarmScenario(thermalRunaway, 0.00010, 9000, 20000);
+        registerAlarmScenario(chargerAcFail, 0.00014, 7000, 15000);
+        registerAlarmScenario(upstreamHold, 0.00017, 5000, 10000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

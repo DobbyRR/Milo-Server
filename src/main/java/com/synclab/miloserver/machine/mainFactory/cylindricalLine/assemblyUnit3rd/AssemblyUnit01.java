@@ -193,9 +193,9 @@ public class AssemblyUnit01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(alignmentDrift, 0.0017, 5000, 11000);
-        registerAlarmScenario(electrolyteLeak, 0.0012, 8000, 16000);
-        registerAlarmScenario(kitDelay, 0.0010, 3000, 7000);
+        registerAlarmScenario(alignmentDrift, 0.00017, 5000, 11000);
+        registerAlarmScenario(electrolyteLeak, 0.00012, 8000, 16000);
+        registerAlarmScenario(kitDelay, 0.00010, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

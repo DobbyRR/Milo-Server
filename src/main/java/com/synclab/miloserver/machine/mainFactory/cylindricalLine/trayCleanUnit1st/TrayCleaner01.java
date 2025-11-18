@@ -244,9 +244,9 @@ public class TrayCleaner01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(brushOverload, 0.0015, 6000, 14000);
-        registerAlarmScenario(rinsePressureLow, 0.0020, 4000, 9000);
-        registerAlarmScenario(upstreamDelay, 0.0012, 3000, 6000);
+        registerAlarmScenario(brushOverload, 0.00015, 6000, 14000);
+        registerAlarmScenario(rinsePressureLow, 0.00020, 4000, 9000);
+        registerAlarmScenario(upstreamDelay, 0.00012, 3000, 6000);
     }
 
     private void evaluateTrayResult() {

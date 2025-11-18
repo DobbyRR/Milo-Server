@@ -258,9 +258,9 @@ public class FinalInspection02 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(lightingFault, 0.0019, 5000, 11000);
-        registerAlarmScenario(socketBurn, 0.0013, 7000, 14000);
-        registerAlarmScenario(palletJam, 0.0010, 3000, 7000);
+        registerAlarmScenario(lightingFault, 0.00019, 5000, 11000);
+        registerAlarmScenario(socketBurn, 0.00013, 7000, 14000);
+        registerAlarmScenario(palletJam, 0.00010, 3000, 7000);
     }
 
     private void sampleProcessMetrics() {

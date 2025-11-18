@@ -199,10 +199,10 @@ public class AssemblyUnit02 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(stackShift, 0.0018, 5000, 11000);
-        registerAlarmScenario(welderInterlock, 0.0013, 6000, 12000);
-        registerAlarmScenario(gasLeak, 0.0009, 9000, 18000);
-        registerAlarmScenario(feederDelay, 0.0011, 3000, 7000);
+        registerAlarmScenario(stackShift, 0.00018, 5000, 11000);
+        registerAlarmScenario(welderInterlock, 0.00013, 6000, 12000);
+        registerAlarmScenario(gasLeak, 0.00009, 9000, 18000);
+        registerAlarmScenario(feederDelay, 0.00011, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

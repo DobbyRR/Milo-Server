@@ -279,9 +279,9 @@ public class ElectrodeUnit01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(mixerTrip, 0.0014, 7000, 15000);
-        registerAlarmScenario(ovenOverHeat, 0.0010, 9000, 20000);
-        registerAlarmScenario(slurryShortage, 0.0018, 4000, 9000);
+        registerAlarmScenario(mixerTrip, 0.00014, 7000, 15000);
+        registerAlarmScenario(ovenOverHeat, 0.00010, 9000, 20000);
+        registerAlarmScenario(slurryShortage, 0.00018, 4000, 9000);
     }
 
     private void sampleProcessMetrics() {

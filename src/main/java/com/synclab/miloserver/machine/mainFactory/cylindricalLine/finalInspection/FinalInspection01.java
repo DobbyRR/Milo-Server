@@ -258,9 +258,10 @@ public class FinalInspection01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(cameraFault, 0.0018, 5000, 11000);
-        registerAlarmScenario(hvLeak, 0.0012, 8000, 16000);
-        registerAlarmScenario(mesDelay, 0.0010, 3000, 7000);
+        // Probability reduced to 10% of previous values to cut alarm frequency.
+        registerAlarmScenario(cameraFault, 0.00018, 5000, 11000);
+        registerAlarmScenario(hvLeak, 0.00012, 8000, 16000);
+        registerAlarmScenario(mesDelay, 0.00010, 3000, 7000);
     }
 
     private void sampleProcessMetrics() {

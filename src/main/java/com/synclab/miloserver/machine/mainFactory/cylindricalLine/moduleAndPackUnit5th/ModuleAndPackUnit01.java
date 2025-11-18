@@ -185,9 +185,9 @@ public class ModuleAndPackUnit01 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(weldStop, 0.0016, 6000, 13000);
-        registerAlarmScenario(torqueTool, 0.0019, 5000, 11000);
-        registerAlarmScenario(agvDelay, 0.0011, 3000, 7000);
+        registerAlarmScenario(weldStop, 0.00016, 6000, 13000);
+        registerAlarmScenario(torqueTool, 0.00019, 5000, 11000);
+        registerAlarmScenario(agvDelay, 0.00011, 3000, 7000);
     }
 
     private boolean prepareCurrentSerial(MultiMachineNameSpace ns) {

@@ -211,9 +211,9 @@ public class TrayCleaner02 extends UnitLogic {
                 AlarmCause.EXTERNAL
         );
 
-        registerAlarmScenario(ionizerFault, 0.0013, 7000, 15000);
-        registerAlarmScenario(filterClog, 0.0018, 5000, 11000);
-        registerAlarmScenario(downstreamBlock, 0.0010, 3000, 7000);
+        registerAlarmScenario(ionizerFault, 0.00013, 7000, 15000);
+        registerAlarmScenario(filterClog, 0.00018, 5000, 11000);
+        registerAlarmScenario(downstreamBlock, 0.00010, 3000, 7000);
     }
 
     private void concludeCleaning(MultiMachineNameSpace ns) {
