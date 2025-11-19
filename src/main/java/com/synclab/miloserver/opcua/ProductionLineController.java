@@ -8,6 +8,8 @@ import org.eclipse.milo.opcua.stack.core.AttributeId;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayDeque;
@@ -22,6 +24,7 @@ import java.util.Map;
  * 트레이/시리얼 기반의 병렬 파이프라인 컨트롤러.
  */
 public class ProductionLineController {
+    private static final Logger log = LoggerFactory.getLogger(ProductionLineController.class);
 
     private static final int TRAY_CAPACITY = 36;
     private static final int STAGE_TRAY_CLEAN = 1;
@@ -100,6 +103,7 @@ public class ProductionLineController {
                             ? value.getValue().getValue().toString().trim()
                             : "";
                     if (!raw.isEmpty()) {
+                        log.info("[{}] OPC command received raw='{}'", lineName, raw);
                         handleCommand(raw);
                     }
                 }
@@ -184,6 +188,8 @@ public class ProductionLineController {
                     return;
                 }
                 String sanitizedItemCode = itemCode != null && !itemCode.isBlank() ? itemCode.trim() : null;
+                log.info("[{}] MES command START orderNo={} targetQty={} itemCode='{}'",
+                        lineName, orderId.trim(), targetQty, sanitizedItemCode);
                 startOrder(orderId.trim(), targetQty, sanitizedItemCode);
                 break;
             case "STOP":
@@ -202,6 +208,8 @@ public class ProductionLineController {
             System.err.printf("[%s] Line busy; cannot start new order.%n", lineName);
             return;
         }
+        log.info("[{}] Starting order orderNo={} targetQty={} sanitizedItemCode='{}'",
+                lineName, orderId, targetQty, itemCode != null ? itemCode : "");
         this.orderActive = true;
         this.awaitingAck = false;
         this.orderNo = orderId;

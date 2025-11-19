@@ -3,6 +3,8 @@ package com.synclab.miloserver.controller;
 import com.synclab.miloserver.opcua.MultiMachineNameSpace;
 import com.synclab.miloserver.opcua.ProductionLineController;
 import com.synclab.miloserver.opcua.UaNodeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/machine")
 public class MachineController {
+    private static final Logger log = LoggerFactory.getLogger(MachineController.class);
     private final UaNodeManager manager;
     private final MultiMachineNameSpace namespace;
 
@@ -45,6 +48,14 @@ public class MachineController {
 
         String normalizedFactoryCode = factoryCode.trim();
         String normalizedLineCode = lineCode.trim();
+
+        log.info("MES ORDER PAYLOAD factoryCode={}, lineCode={}, action={}, orderNo={}, targetQty={}, itemCode={}",
+                normalizedFactoryCode,
+                normalizedLineCode,
+                request.getAction(),
+                request.getOrderNo(),
+                request.getTargetQty(),
+                request.getItemCode());
 
         ProductionLineController lineController = namespace.findLineController(normalizedFactoryCode, normalizedLineCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
