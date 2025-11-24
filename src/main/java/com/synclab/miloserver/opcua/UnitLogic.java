@@ -42,6 +42,7 @@ public abstract class UnitLogic {
     protected final List<String> trayCompletedOkSerials = new ArrayList<>();
     protected String activeSerial = "";
     protected final int[] trayNgTypeCounts = new int[4];
+    protected final int[] orderNgTypeCounts = new int[4];
     protected int lastNgType = 0;
     protected String lastNgName = "";
     private final Map<Integer, String> ngTypeNameMap = new HashMap<>();
@@ -222,6 +223,7 @@ public abstract class UnitLogic {
         telemetryNodes.put("order_ok_qty", ns.addVariableNode(machineFolder, name + ".order_ok_qty", okCount));
         telemetryNodes.put("order_ng_qty", ns.addVariableNode(machineFolder, name + ".order_ng_qty", ngCount));
         telemetryNodes.put("order_ng_name", ns.addVariableNode(machineFolder, name + ".order_ng_name", ""));
+        telemetryNodes.put("order_ng_types_payload", ns.addVariableNode(machineFolder, name + ".order_ng_types_payload", ""));
         telemetryNodes.put("order_status", ns.addVariableNode(machineFolder, name + ".order_status", orderStatus));
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
         telemetryNodes.put("ng_event_payload", ns.addVariableNode(machineFolder, name + ".ng_event_payload", ""));
@@ -379,7 +381,8 @@ public abstract class UnitLogic {
         int cumulativeTypeCount = 1;
         if (ngType >= 1 && ngType <= trayNgTypeCounts.length) {
             trayNgTypeCounts[ngType - 1]++;
-            cumulativeTypeCount = trayNgTypeCounts[ngType - 1];
+            orderNgTypeCounts[ngType - 1]++;
+            cumulativeTypeCount = orderNgTypeCounts[ngType - 1];
             lastNgType = ngType;
         }
         activeSerial = "";
@@ -437,18 +440,24 @@ public abstract class UnitLogic {
 
     protected void updateNgTelemetry(MultiMachineNameSpace ns) {
         updateTelemetry(ns, "order_ng_type", lastNgType);
-        updateTelemetry(ns, "order_ng_type1_qty", trayNgTypeCounts[0]);
-        updateTelemetry(ns, "order_ng_type2_qty", trayNgTypeCounts[1]);
-        updateTelemetry(ns, "order_ng_type3_qty", trayNgTypeCounts[2]);
-        updateTelemetry(ns, "order_ng_type4_qty", trayNgTypeCounts[3]);
+        updateTelemetry(ns, "order_ng_type1_qty", orderNgTypeCounts[0]);
+        updateTelemetry(ns, "order_ng_type2_qty", orderNgTypeCounts[1]);
+        updateTelemetry(ns, "order_ng_type3_qty", orderNgTypeCounts[2]);
+        updateTelemetry(ns, "order_ng_type4_qty", orderNgTypeCounts[3]);
         updateTelemetry(ns, "order_ng_name", lastNgName);
+        publishNgTypePayload(ns);
+    }
+
+    protected void resetOrderNgCounts(MultiMachineNameSpace ns) {
+        Arrays.fill(orderNgTypeCounts, 0);
+        lastNgType = 0;
+        lastNgName = "";
+        updateNgTelemetry(ns);
     }
 
     protected void resetNgTelemetry(MultiMachineNameSpace ns) {
-        lastNgType = 0;
-        lastNgName = "";
         Arrays.fill(trayNgTypeCounts, 0);
-        updateNgTelemetry(ns);
+        resetOrderNgCounts(ns);
     }
 
     protected void registerNgTypeNames(String... names) {
@@ -485,6 +494,37 @@ public abstract class UnitLogic {
                 Math.max(ngQty, 0)
         );
         updateTelemetry(ns, "ng_event_payload", payload);
+    }
+
+    private void publishNgTypePayload(MultiMachineNameSpace ns) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{\"equipmentCode\":\"")
+                .append(escapeJson(equipmentCode))
+                .append("\",\"order_no\":\"")
+                .append(escapeJson(orderNo))
+                .append("\",\"types\":[");
+        for (int i = 0; i < trayNgTypeCounts.length; i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            int type = i + 1;
+            builder.append("{\"type\":")
+                    .append(type)
+                    .append(",\"name\":\"")
+                    .append(escapeJson(ngTypeNameMap.getOrDefault(type, "")))
+                    .append("\",\"qty\":")
+                    .append(Math.max(orderNgTypeCounts[i], 0))
+                    .append('}');
+        }
+        builder.append("]}");
+        updateTelemetry(ns, "order_ng_types_payload", builder.toString());
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\"", "\\\"");
     }
 
     private void updateOrderSummaryPayload(MultiMachineNameSpace ns) {
@@ -922,6 +962,8 @@ public abstract class UnitLogic {
         this.lastProducedIncrement = 0;
         this.okCount = 0;
         this.ngCount = 0;
+        Arrays.fill(trayNgTypeCounts, 0);
+        resetOrderNgCounts(ns);
         updateTelemetry(ns, "order_no", orderNo);
         updateTelemetry(ns, "order_target_qty", targetQuantity);
         updateProducedQuantity(ns, 0);
