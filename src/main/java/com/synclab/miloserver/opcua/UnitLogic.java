@@ -376,15 +376,17 @@ public abstract class UnitLogic {
         }
         trayRejectedSerials.add(activeSerial);
         trayCompletedOkSerials.remove(activeSerial);
+        int cumulativeTypeCount = 1;
         if (ngType >= 1 && ngType <= trayNgTypeCounts.length) {
             trayNgTypeCounts[ngType - 1]++;
+            cumulativeTypeCount = trayNgTypeCounts[ngType - 1];
             lastNgType = ngType;
         }
         activeSerial = "";
         updateTrayTelemetry(ns);
         updateNgTelemetry(ns);
         updateNgName(ns, resolveNgTypeName(ngType));
-        publishNgEvent(ns, ngType, 1);
+        publishNgEvent(ns, ngType, cumulativeTypeCount);
     }
 
     public synchronized boolean hasMoreSerials() {
