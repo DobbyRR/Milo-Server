@@ -25,7 +25,7 @@ public class MiloServerConfig {
 
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("192.168.0.21")
+                .setHostname("192.168.0.24")
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)

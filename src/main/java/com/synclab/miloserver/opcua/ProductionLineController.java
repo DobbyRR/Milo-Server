@@ -235,7 +235,7 @@ public class ProductionLineController {
 
         orderStatus = "PREPARING";
         updateLineTelemetry();
-        machines().forEach(machine -> machine.updateOrderItemCode(namespace, sanitizedItemCode));
+        machines().forEach(machine -> machine.synchronizeOrderMetadata(namespace, orderId, sanitizedItemCode));
         updateNode("order_produced_qty", 0);
         updateNode("production_performance_payload", "");
 

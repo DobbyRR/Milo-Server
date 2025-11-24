@@ -283,6 +283,23 @@ public abstract class UnitLogic {
         this.orderItemCode = sanitized;
     }
 
+    /**
+     * Force machine telemetry to reflect the latest line-level order metadata so stale
+     * order_no values do not leak out before trays are assigned.
+     */
+    public synchronized void synchronizeOrderMetadata(MultiMachineNameSpace ns,
+                                                      String newOrderNo,
+                                                      String newItemCode) {
+        String sanitizedOrderNo = newOrderNo != null ? newOrderNo.trim() : "";
+        if (!Objects.equals(this.orderNo, sanitizedOrderNo)) {
+            this.orderNo = sanitizedOrderNo;
+            updateTelemetry(ns, "order_no", this.orderNo);
+        }
+        if (newItemCode != null) {
+            updateOrderItemCode(ns, newItemCode);
+        }
+    }
+
     protected void updateTrayTelemetry(MultiMachineNameSpace ns) {
         refreshPendingSerialsView();
         updateTelemetry(ns, "tray_id", trayId);
