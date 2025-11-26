@@ -6,10 +6,14 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.GZIPOutputStream;
 
 public abstract class UnitLogic {
     protected final String name;
@@ -46,6 +51,7 @@ public abstract class UnitLogic {
     protected int lastNgType = 0;
     protected String lastNgName = "";
     private final Map<Integer, String> ngTypeNameMap = new HashMap<>();
+    protected boolean publishFinalSerialsInSummary = false;
 
     protected int targetQuantity = 0;
     protected int producedQuantity = 0;
@@ -319,6 +325,42 @@ public abstract class UnitLogic {
         return serials.isEmpty() ? "" : String.join(",", serials);
     }
 
+    private String serializeSerialsAsJsonArray(List<String> serials) {
+        if (serials == null || serials.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder builder = new StringBuilder("[");
+        for (int i = 0; i < serials.size(); i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            builder.append('\"')
+                    .append(escapeJson(serials.get(i)))
+                    .append('\"');
+        }
+        builder.append(']');
+        return builder.toString();
+    }
+
+    private String serializeSerialsAsGzipBase64(List<String> serials) {
+        if (serials == null || serials.isEmpty()) {
+            return "";
+        }
+        String jsonArray = serializeSerialsAsJsonArray(serials);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
+            gzip.write(jsonArray.getBytes(StandardCharsets.UTF_8));
+            gzip.finish();
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (IOException ex) {
+            return "";
+        }
+    }
+
+    protected void setPublishFinalSerialsInSummary(boolean publishFinalSerials) {
+        this.publishFinalSerialsInSummary = publishFinalSerials;
+    }
+
     protected synchronized void clearTrayContext(MultiMachineNameSpace ns) {
         trayId = "";
         traySerials.clear();
@@ -528,11 +570,17 @@ public abstract class UnitLogic {
     }
 
     private void updateOrderSummaryPayload(MultiMachineNameSpace ns) {
+        String compressedSerials = publishFinalSerialsInSummary
+                ? serializeSerialsAsGzipBase64(trayCompletedOkSerials)
+                : "";
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d}",
-                equipmentCode == null ? "" : equipmentCode,
+                "{\"equipmentCode\":\"%s\",\"order_no\":\"%s\",\"status\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d,\"good_serials_gzip\":\"%s\"}",
+                escapeJson(equipmentCode),
+                escapeJson(orderNo),
+                escapeJson(orderStatus),
                 producedQuantity,
-                ngCount
+                ngCount,
+                compressedSerials
         );
         updateTelemetry(ns, "order_summary_payload", payload);
     }

@@ -58,6 +58,7 @@ public class FinalInspection02 extends UnitLogic {
         this.defaultPpm = 52;
         setUnitsPerCycle(1);
         configureEnergyProfile(0.32, 0.04, 3.6, 0.45);
+        setPublishFinalSerialsInSummary(true);
 
         configureAlarms();
         setupCommonTelemetry(ns);
