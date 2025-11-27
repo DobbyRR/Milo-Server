@@ -48,12 +48,16 @@ public class CellCleaner01 extends UnitLogic {
         private NgType() {}
     }
 
-    public CellCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public CellCleaner01(String name,
+                         String lineId,
+                         String equipmentCode,
+                         UaFolderNode folder,
+                         MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "CELL_CLEAN";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 6;
-        this.equipmentCode = "F1-CL1-CCP001";
+        this.equipmentCode = equipmentCode;
         this.processId = "CellCleaning";
         this.defaultPpm = 55;
         setUnitsPerCycle(1);

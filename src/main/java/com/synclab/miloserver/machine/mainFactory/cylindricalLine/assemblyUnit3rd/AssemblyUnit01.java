@@ -49,12 +49,16 @@ public class AssemblyUnit01 extends UnitLogic {
         private NgType() {}
     }
 
-    public AssemblyUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public AssemblyUnit01(String name,
+                          String lineId,
+                          String equipmentPrefix,
+                          UaFolderNode folder,
+                          MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "ASSEMBLY";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 3;
-        this.equipmentCode = "F1-CL1-AU001";
+        this.equipmentCode = equipmentCode;
         this.processId = "Assembly";
         this.defaultPpm = 80;
         setUnitsPerCycle(1);

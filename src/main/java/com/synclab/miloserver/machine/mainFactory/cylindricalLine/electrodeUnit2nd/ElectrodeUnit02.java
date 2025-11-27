@@ -50,12 +50,16 @@ public class ElectrodeUnit02 extends UnitLogic {
         private NgType() {}
     }
 
-    public ElectrodeUnit02(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ElectrodeUnit02(String name,
+                           String lineId,
+                           String equipmentPrefix,
+                           UaFolderNode folder,
+                           MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "ELECTRODE";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 2;
-        this.equipmentCode = "F1-CL1-EU002";
+        this.equipmentCode = equipmentCode;
         this.processId = "Electrode";
         configureEnergyProfile(1.1, 0.12, 11.5, 1.3);
         this.defaultPpm = 92;

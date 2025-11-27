@@ -45,12 +45,16 @@ public class TrayCleaner01 extends UnitLogic {
         private NgType() {}
     }
 
-    public TrayCleaner01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public TrayCleaner01(String name,
+                         String lineId,
+                         String equipmentCode,
+                         UaFolderNode folder,
+                         MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "TRAY_CLEAN";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 1;
-        this.equipmentCode = "F1-CL1-TCP001";
+        this.equipmentCode = equipmentCode;
         this.processId = "DryClean";
         setUnitsPerCycle(36);
         setDefaultPpm(72);

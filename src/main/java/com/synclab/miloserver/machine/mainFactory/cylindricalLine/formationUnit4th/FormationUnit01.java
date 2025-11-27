@@ -48,12 +48,16 @@ public class FormationUnit01 extends UnitLogic {
         private NgType() {}
     }
 
-    public FormationUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public FormationUnit01(String name,
+                           String lineId,
+                           String equipmentPrefix,
+                           UaFolderNode folder,
+                           MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "FORMATION";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 4;
-        this.equipmentCode = "F1-CL1-FAU001";
+        this.equipmentCode = equipmentCode;
         this.processId = "Formation";
         this.defaultPpm = 70;
         setUnitsPerCycle(1);

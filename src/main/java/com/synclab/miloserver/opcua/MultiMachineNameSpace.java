@@ -41,6 +41,7 @@ import com.synclab.miloserver.machine.mainFactory.cylindricalLine.trayCleanUnit1
 import com.synclab.miloserver.machine.mainFactory.cylindricalLine.trayCleanUnit1st.TrayCleaner02;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,45 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
     private final List<ProductionLineController> lineControllers = new ArrayList<>();
     private final Map<String, ProductionLineController> lineControllersByKey = new ConcurrentHashMap<>();
     private final Map<String, UaVariableNode> commandNodes = new ConcurrentHashMap<>();
+
+    private enum LineVariant {
+        CYLINDRICAL,
+        PRISMATIC,
+        COMPOSITE
+    }
+
+    private static final class FactoryProfile {
+        private final String factoryCode;
+        private final List<LineProfile> lines;
+
+        private FactoryProfile(String factoryCode, List<LineProfile> lines) {
+            this.factoryCode = factoryCode;
+            this.lines = lines;
+        }
+    }
+
+    private static final class LineProfile {
+        private final String lineCode;
+        private final String lineId;
+        private final String equipmentPrefix;
+        private final boolean legacyMachineNames;
+        private final LineVariant variant;
+        private final int sequenceIndex;
+
+        private LineProfile(String lineCode,
+                            String lineId,
+                            String equipmentPrefix,
+                            boolean legacyMachineNames,
+                            LineVariant variant,
+                            int sequenceIndex) {
+            this.lineCode = lineCode;
+            this.lineId = lineId;
+            this.equipmentPrefix = equipmentPrefix;
+            this.legacyMachineNames = legacyMachineNames;
+            this.variant = variant;
+            this.sequenceIndex = sequenceIndex;
+        }
+    }
 
     private static NodeId dataTypeIdFor(Object v) {
         if (v instanceof Boolean) return Identifiers.Boolean;
@@ -144,52 +184,353 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         // 예시 변수 노드(정방향으로 부모=Machines에 달아줌)
 //        addVariableNode(rootFolder, "Factory.Status", "RUNNING");
 
-        String mainFactoryCode = "F0001";
-        UaFolderNode mainFactoryFolder = addFolder(rootFolder, mainFactoryCode);
-
-        String cylindricalLineCode = "CL0001";
-        UaFolderNode cylindricalLineFolder = addFolder(mainFactoryFolder, cylindricalLineCode);
-        ProductionLineController cylindricalLineController = new ProductionLineController(
-                this,
-                lineQualifiedName(mainFactoryCode, cylindricalLineCode),
-                cylindricalLineFolder
+        List<FactoryProfile> factories = Arrays.asList(
+                new FactoryProfile("F0001", Arrays.asList(
+                        new LineProfile("CL0001", "CylindricalLine", "F1-CL1-", true, LineVariant.CYLINDRICAL, 1),
+                        new LineProfile("PL0001", "PrismaticLine", "F1-PL1-", false, LineVariant.PRISMATIC, 2),
+                        new LineProfile("CP0001", "CompositeLine", "F1-CP1-", false, LineVariant.COMPOSITE, 3)
+                )),
+                new FactoryProfile("F0002", Arrays.asList(
+                        new LineProfile("CL0002", "CylindricalLine", "F2-CL2-", false, LineVariant.CYLINDRICAL, 4),
+                        new LineProfile("PL0002", "PrismaticLine", "F2-PL2-", false, LineVariant.PRISMATIC, 5),
+                        new LineProfile("CP0002", "CompositeLine", "F2-CP2-", false, LineVariant.COMPOSITE, 6)
+                )),
+                new FactoryProfile("F0003", Arrays.asList(
+                        new LineProfile("CL0003", "CylindricalLine", "F3-CL3-", false, LineVariant.CYLINDRICAL, 7),
+                        new LineProfile("PL0003", "PrismaticLine", "F3-PL3-", false, LineVariant.PRISMATIC, 8),
+                        new LineProfile("CP0003", "CompositeLine", "F3-CP3-", false, LineVariant.COMPOSITE, 9)
+                ))
         );
-        registerLineController(mainFactoryCode, cylindricalLineCode, cylindricalLineController);
 
-        UnitLogic trayCleaner01 = new TrayCleaner01("TrayCleaner01", addFolder(cylindricalLineFolder, "TrayCleaner01"), this);
-        UnitLogic trayCleaner02 = new TrayCleaner02("TrayCleaner02", addFolder(cylindricalLineFolder, "TrayCleaner02"), this);
-        UnitLogic electrodeUnit01 = new ElectrodeUnit01("ElectrodeUnit01", addFolder(cylindricalLineFolder, "ElectrodeUnit01"), this);
-        UnitLogic electrodeUnit02 = new ElectrodeUnit02("ElectrodeUnit02", addFolder(cylindricalLineFolder, "ElectrodeUnit02"), this);
-        UnitLogic assemblyUnit01 = new AssemblyUnit01("AssemblyUnit01", addFolder(cylindricalLineFolder, "AssemblyUnit01"), this);
-        UnitLogic assemblyUnit02 = new AssemblyUnit02("AssemblyUnit02", addFolder(cylindricalLineFolder, "AssemblyUnit02"), this);
-        UnitLogic formationUnit01 = new FormationUnit01("FormationUnit01", addFolder(cylindricalLineFolder, "FormationUnit01"), this);
-        UnitLogic formationUnit02 = new FormationUnit02("FormationUnit02", addFolder(cylindricalLineFolder, "FormationUnit02"), this);
-        UnitLogic modulePackUnit01 = new ModuleAndPackUnit01("ModuleAndPackUnit01", addFolder(cylindricalLineFolder, "ModuleAndPackUnit01"), this);
-        UnitLogic modulePackUnit02 = new ModuleAndPackUnit02("ModuleAndPackUnit02", addFolder(cylindricalLineFolder, "ModuleAndPackUnit02"), this);
-        UnitLogic cellCleaner01 = new CellCleaner01("CellCleaner01", addFolder(cylindricalLineFolder, "CellCleaner01"), this);
-        UnitLogic cellCleaner02 = new CellCleaner02("CellCleaner02", addFolder(cylindricalLineFolder, "CellCleaner02"), this);
-        UnitLogic finalInspection01 = new FinalInspection01("FinalInspection01", addFolder(cylindricalLineFolder, "FinalInspection01"), this);
-        UnitLogic finalInspection02 = new FinalInspection02("FinalInspection02", addFolder(cylindricalLineFolder, "FinalInspection02"), this);
-
-        registerMachine(trayCleaner01, cylindricalLineController);
-        registerMachine(trayCleaner02, cylindricalLineController);
-        registerMachine(electrodeUnit01, cylindricalLineController);
-        registerMachine(electrodeUnit02, cylindricalLineController);
-        registerMachine(assemblyUnit01, cylindricalLineController);
-        registerMachine(assemblyUnit02, cylindricalLineController);
-        registerMachine(formationUnit01, cylindricalLineController);
-        registerMachine(formationUnit02, cylindricalLineController);
-        registerMachine(modulePackUnit01, cylindricalLineController);
-        registerMachine(modulePackUnit02, cylindricalLineController);
-        registerMachine(cellCleaner01, cylindricalLineController);
-        registerMachine(cellCleaner02, cylindricalLineController);
-        registerMachine(finalInspection01, cylindricalLineController);
-        registerMachine(finalInspection02, cylindricalLineController);
+        for (FactoryProfile factory : factories) {
+            initializeFactory(factory);
+        }
 
         System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");
         System.out.println("[DEBUG] namespace index: " + getNamespaceIndex());
 
+    }
+
+    private void initializeFactory(FactoryProfile factoryProfile) {
+        UaFolderNode factoryFolder = addFolder(rootFolder, factoryProfile.factoryCode);
+        for (LineProfile profile : factoryProfile.lines) {
+            initializeLine(factoryFolder, factoryProfile.factoryCode, profile);
+        }
+    }
+
+    private void initializeLine(UaFolderNode factoryFolder, String factoryCode, LineProfile profile) {
+        UaFolderNode lineFolder = addFolder(factoryFolder, profile.lineCode);
+        ProductionLineController lineController = new ProductionLineController(
+                this,
+                lineQualifiedName(factoryCode, profile.lineCode),
+                lineFolder
+        );
+        registerLineController(factoryCode, profile.lineCode, lineController);
+
+        registerLineMachines(profile, lineFolder, lineController);
+    }
+
+    private void registerLineMachines(LineProfile profile,
+                                      UaFolderNode lineFolder,
+                                      ProductionLineController lineController) {
+        switch (profile.variant) {
+            case CYLINDRICAL -> registerCylindricalMachines(profile, lineFolder, lineController);
+            case PRISMATIC -> registerPrismaticMachines(profile, lineFolder, lineController);
+            case COMPOSITE -> registerCompositeMachines(profile, lineFolder, lineController);
+            default -> throw new IllegalArgumentException("Unsupported line variant: " + profile.variant);
+        }
+    }
+
+    private String equipmentCode(LineProfile profile, String baseCode, int unitIndex) {
+        int start = (profile.sequenceIndex - 1) * 2;
+        int number = start + unitIndex;
+        return profile.equipmentPrefix + baseCode + String.format("%03d", number);
+    }
+
+    private void registerCylindricalMachines(LineProfile profile,
+                                             UaFolderNode lineFolder,
+                                             ProductionLineController lineController) {
+        registerMachine(new TrayCleaner01(
+                machineName(profile, "TrayCleaner01"),
+                profile.lineId,
+                equipmentCode(profile, "TCP", 1),
+                addFolder(lineFolder, "TrayCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new TrayCleaner02(
+                machineName(profile, "TrayCleaner02"),
+                profile.lineId,
+                equipmentCode(profile, "TCP", 2),
+                addFolder(lineFolder, "TrayCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new ElectrodeUnit01(
+                machineName(profile, "ElectrodeUnit01"),
+                profile.lineId,
+                equipmentCode(profile, "EU", 1),
+                addFolder(lineFolder, "ElectrodeUnit01"),
+                this
+        ), lineController);
+        registerMachine(new ElectrodeUnit02(
+                machineName(profile, "ElectrodeUnit02"),
+                profile.lineId,
+                equipmentCode(profile, "EU", 2),
+                addFolder(lineFolder, "ElectrodeUnit02"),
+                this
+        ), lineController);
+        registerMachine(new AssemblyUnit01(
+                machineName(profile, "AssemblyUnit01"),
+                profile.lineId,
+                equipmentCode(profile, "AU", 1),
+                addFolder(lineFolder, "AssemblyUnit01"),
+                this
+        ), lineController);
+        registerMachine(new AssemblyUnit02(
+                machineName(profile, "AssemblyUnit02"),
+                profile.lineId,
+                equipmentCode(profile, "AU", 2),
+                addFolder(lineFolder, "AssemblyUnit02"),
+                this
+        ), lineController);
+        registerMachine(new FormationUnit01(
+                machineName(profile, "FormationUnit01"),
+                profile.lineId,
+                equipmentCode(profile, "FAU", 1),
+                addFolder(lineFolder, "FormationUnit01"),
+                this
+        ), lineController);
+        registerMachine(new FormationUnit02(
+                machineName(profile, "FormationUnit02"),
+                profile.lineId,
+                equipmentCode(profile, "FAU", 2),
+                addFolder(lineFolder, "FormationUnit02"),
+                this
+        ), lineController);
+        registerMachine(new ModuleAndPackUnit01(
+                machineName(profile, "ModuleAndPackUnit01"),
+                profile.lineId,
+                equipmentCode(profile, "MAP", 1),
+                addFolder(lineFolder, "ModuleAndPackUnit01"),
+                this
+        ), lineController);
+        registerMachine(new ModuleAndPackUnit02(
+                machineName(profile, "ModuleAndPackUnit02"),
+                profile.lineId,
+                equipmentCode(profile, "MAP", 2),
+                addFolder(lineFolder, "ModuleAndPackUnit02"),
+                this
+        ), lineController);
+        registerMachine(new CellCleaner01(
+                machineName(profile, "CellCleaner01"),
+                profile.lineId,
+                equipmentCode(profile, "CCP", 1),
+                addFolder(lineFolder, "CellCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new CellCleaner02(
+                machineName(profile, "CellCleaner02"),
+                profile.lineId,
+                equipmentCode(profile, "CCP", 2),
+                addFolder(lineFolder, "CellCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new FinalInspection01(
+                machineName(profile, "FinalInspection01"),
+                profile.lineId,
+                equipmentCode(profile, "FIP", 1),
+                addFolder(lineFolder, "FinalInspection01"),
+                this
+        ), lineController);
+        registerMachine(new FinalInspection02(
+                machineName(profile, "FinalInspection02"),
+                profile.lineId,
+                equipmentCode(profile, "FIP", 2),
+                addFolder(lineFolder, "FinalInspection02"),
+                this
+        ), lineController);
+    }
+
+    private void registerPrismaticMachines(LineProfile profile,
+                                           UaFolderNode lineFolder,
+                                           ProductionLineController lineController) {
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.trayCleanUnit1st.TrayCleaner01(
+                machineName(profile, "TrayCleaner01"),
+                equipmentCode(profile, "TCP", 1),
+                addFolder(lineFolder, "TrayCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.trayCleanUnit1st.TrayCleaner02(
+                machineName(profile, "TrayCleaner02"),
+                equipmentCode(profile, "TCP", 2),
+                addFolder(lineFolder, "TrayCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.electrodeUnit2nd.ElectrodeUnit01(
+                machineName(profile, "ElectrodeUnit01"),
+                equipmentCode(profile, "EU", 1),
+                addFolder(lineFolder, "ElectrodeUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.electrodeUnit2nd.ElectrodeUnit02(
+                machineName(profile, "ElectrodeUnit02"),
+                equipmentCode(profile, "EU", 2),
+                addFolder(lineFolder, "ElectrodeUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.assemblyUnit3rd.AssemblyUnit01(
+                machineName(profile, "AssemblyUnit01"),
+                equipmentCode(profile, "AU", 1),
+                addFolder(lineFolder, "AssemblyUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.assemblyUnit3rd.AssemblyUnit02(
+                machineName(profile, "AssemblyUnit02"),
+                equipmentCode(profile, "AU", 2),
+                addFolder(lineFolder, "AssemblyUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.formationUnit4th.FormationUnit01(
+                machineName(profile, "FormationUnit01"),
+                equipmentCode(profile, "FAU", 1),
+                addFolder(lineFolder, "FormationUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.formationUnit4th.FormationUnit02(
+                machineName(profile, "FormationUnit02"),
+                equipmentCode(profile, "FAU", 2),
+                addFolder(lineFolder, "FormationUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.moduleAndPackUnit5th.ModuleAndPackUnit01(
+                machineName(profile, "ModuleAndPackUnit01"),
+                equipmentCode(profile, "MAP", 1),
+                addFolder(lineFolder, "ModuleAndPackUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.moduleAndPackUnit5th.ModuleAndPackUnit02(
+                machineName(profile, "ModuleAndPackUnit02"),
+                equipmentCode(profile, "MAP", 2),
+                addFolder(lineFolder, "ModuleAndPackUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.cellCleanUnit6th.CellCleaner01(
+                machineName(profile, "CellCleaner01"),
+                equipmentCode(profile, "CCP", 1),
+                addFolder(lineFolder, "CellCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.cellCleanUnit6th.CellCleaner02(
+                machineName(profile, "CellCleaner02"),
+                equipmentCode(profile, "CCP", 2),
+                addFolder(lineFolder, "CellCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.finalInspection.FinalInspection01(
+                machineName(profile, "FinalInspection01"),
+                equipmentCode(profile, "FIP", 1),
+                addFolder(lineFolder, "FinalInspection01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.prismaticLine.finalInspection.FinalInspection02(
+                machineName(profile, "FinalInspection02"),
+                equipmentCode(profile, "FIP", 2),
+                addFolder(lineFolder, "FinalInspection02"),
+                this
+        ), lineController);
+    }
+
+    private void registerCompositeMachines(LineProfile profile,
+                                           UaFolderNode lineFolder,
+                                           ProductionLineController lineController) {
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.trayCleanUnit1st.TrayCleaner01(
+                machineName(profile, "TrayCleaner01"),
+                equipmentCode(profile, "TCP", 1),
+                addFolder(lineFolder, "TrayCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.trayCleanUnit1st.TrayCleaner02(
+                machineName(profile, "TrayCleaner02"),
+                equipmentCode(profile, "TCP", 2),
+                addFolder(lineFolder, "TrayCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.electrodeUnit2nd.ElectrodeUnit01(
+                machineName(profile, "ElectrodeUnit01"),
+                equipmentCode(profile, "EU", 1),
+                addFolder(lineFolder, "ElectrodeUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.electrodeUnit2nd.ElectrodeUnit02(
+                machineName(profile, "ElectrodeUnit02"),
+                equipmentCode(profile, "EU", 2),
+                addFolder(lineFolder, "ElectrodeUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.assemblyUnit3rd.AssemblyUnit01(
+                machineName(profile, "AssemblyUnit01"),
+                equipmentCode(profile, "AU", 1),
+                addFolder(lineFolder, "AssemblyUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.assemblyUnit3rd.AssemblyUnit02(
+                machineName(profile, "AssemblyUnit02"),
+                equipmentCode(profile, "AU", 2),
+                addFolder(lineFolder, "AssemblyUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.formationUnit4th.FormationUnit01(
+                machineName(profile, "FormationUnit01"),
+                equipmentCode(profile, "FAU", 1),
+                addFolder(lineFolder, "FormationUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.formationUnit4th.FormationUnit02(
+                machineName(profile, "FormationUnit02"),
+                equipmentCode(profile, "FAU", 2),
+                addFolder(lineFolder, "FormationUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.moduleAndPackUnit5th.ModuleAndPackUnit01(
+                machineName(profile, "ModuleAndPackUnit01"),
+                equipmentCode(profile, "MAP", 1),
+                addFolder(lineFolder, "ModuleAndPackUnit01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.moduleAndPackUnit5th.ModuleAndPackUnit02(
+                machineName(profile, "ModuleAndPackUnit02"),
+                equipmentCode(profile, "MAP", 2),
+                addFolder(lineFolder, "ModuleAndPackUnit02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.cellCleanUnit6th.CellCleaner01(
+                machineName(profile, "CellCleaner01"),
+                equipmentCode(profile, "CCP", 1),
+                addFolder(lineFolder, "CellCleaner01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.cellCleanUnit6th.CellCleaner02(
+                machineName(profile, "CellCleaner02"),
+                equipmentCode(profile, "CCP", 2),
+                addFolder(lineFolder, "CellCleaner02"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.finalInspection.FinalInspection01(
+                machineName(profile, "FinalInspection01"),
+                equipmentCode(profile, "FIP", 1),
+                addFolder(lineFolder, "FinalInspection01"),
+                this
+        ), lineController);
+        registerMachine(new com.synclab.miloserver.machine.mainFactory.compositeLine.finalInspection.FinalInspection02(
+                machineName(profile, "FinalInspection02"),
+                equipmentCode(profile, "FIP", 2),
+                addFolder(lineFolder, "FinalInspection02"),
+                this
+        ), lineController);
+    }
+
+    private String machineName(LineProfile profile, String baseName) {
+        return profile.legacyMachineNames ? baseName : profile.lineId + "." + baseName;
     }
 
     /** 변수 노드 생성 */

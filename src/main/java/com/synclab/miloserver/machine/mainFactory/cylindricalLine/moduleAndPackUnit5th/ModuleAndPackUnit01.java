@@ -48,12 +48,16 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         private NgType() {}
     }
 
-    public ModuleAndPackUnit01(String name, UaFolderNode folder, MultiMachineNameSpace ns) {
+    public ModuleAndPackUnit01(String name,
+                               String lineId,
+                               String equipmentPrefix,
+                               UaFolderNode folder,
+                               MultiMachineNameSpace ns) {
         super(name, folder);
         this.unitType = "MODULE_PACK";
-        this.lineId = "CylindricalLine";
+        this.lineId = lineId;
         this.machineNo = 5;
-        this.equipmentCode = "F1-CL1-MAP001";
+        this.equipmentCode = equipmentCode;
         this.processId = "ModulePack";
         this.defaultPpm = 60;
         setUnitsPerCycle(1);
