@@ -57,7 +57,7 @@ public class FinalInspection01 extends UnitLogic {
         this.unitType = "FINAL_INSPECTION";
         this.lineId = lineId;
         this.machineNo = 7;
-        this.equipmentCode = equipmentCode;
+        this.equipmentCode = equipmentPrefix;
         this.processId = "FinalInspection";
         this.defaultPpm = 50;
         setUnitsPerCycle(1);
