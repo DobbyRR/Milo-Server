@@ -234,6 +234,8 @@ public abstract class UnitLogic {
         telemetryNodes.put("mes_ack_pending", ns.addVariableNode(machineFolder, name + ".mes_ack_pending", awaitingMesAck));
         telemetryNodes.put("ng_event_payload", ns.addVariableNode(machineFolder, name + ".ng_event_payload", ""));
         telemetryNodes.put("order_summary_payload", ns.addVariableNode(machineFolder, name + ".order_summary_payload", ""));
+
+        initializeDefaultTelemetryPayloads(ns);
     }
 
     /** Telemetry 값 업데이트 및 구독자 알림 */
@@ -583,6 +585,12 @@ public abstract class UnitLogic {
                 compressedSerials
         );
         updateTelemetry(ns, "order_summary_payload", payload);
+    }
+
+    private void initializeDefaultTelemetryPayloads(MultiMachineNameSpace ns) {
+        resetNgTelemetry(ns);
+        publishNgEvent(ns, 0, 0);
+        updateOrderSummaryPayload(ns);
     }
 
     private void updateAlarmPayload(MultiMachineNameSpace ns,

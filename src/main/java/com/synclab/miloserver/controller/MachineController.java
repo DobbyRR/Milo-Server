@@ -40,8 +40,8 @@ public class MachineController {
 
     @PostMapping("/command")
     public ResponseEntity<Void> handleLineCommand(@RequestParam String factoryCode,
-                                                  @RequestParam String lineCode,
-                                                  @RequestBody MesCommandRequest request) {
+                                                @RequestParam String lineCode,
+                                                @RequestBody MesCommandRequest request) {
         if (request == null || request.getAction() == null || request.getAction().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "action is required");
         }
