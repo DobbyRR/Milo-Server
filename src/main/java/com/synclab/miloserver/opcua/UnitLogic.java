@@ -5,6 +5,7 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
+import org.springframework.util.StringUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +47,8 @@ public abstract class UnitLogic {
     protected final List<String> trayRejectedSerials = new ArrayList<>();
     protected final Deque<String> trayPendingSerials = new ArrayDeque<>();
     protected final List<String> trayCompletedOkSerials = new ArrayList<>();
+    protected final LinkedHashSet<String> orderCompletedOkSerials = new LinkedHashSet<>();
+    protected String lastOrderNoForSerials = "";
     protected String activeSerial = "";
     protected final int[] trayNgTypeCounts = new int[4];
     protected final int[] orderNgTypeCounts = new int[4];
@@ -359,6 +363,20 @@ public abstract class UnitLogic {
         }
     }
 
+    private void recordOrderOkSerial(String serial) {
+        if (!publishFinalSerialsInSummary || serial == null || serial.isBlank()) {
+            return;
+        }
+        orderCompletedOkSerials.add(serial);
+    }
+
+    private void removeOrderOkSerial(String serial) {
+        if (!publishFinalSerialsInSummary || serial == null || serial.isBlank()) {
+            return;
+        }
+        orderCompletedOkSerials.remove(serial);
+    }
+
     protected void setPublishFinalSerialsInSummary(boolean publishFinalSerials) {
         this.publishFinalSerialsInSummary = publishFinalSerials;
     }
@@ -411,6 +429,9 @@ public abstract class UnitLogic {
             return;
         }
         trayCompletedOkSerials.add(activeSerial);
+        if (publishFinalSerialsInSummary) {
+            recordOrderOkSerial(activeSerial);
+        }
         activeSerial = "";
         updateTrayTelemetry(ns);
         updateNgName(ns, "");
@@ -422,6 +443,7 @@ public abstract class UnitLogic {
         }
         trayRejectedSerials.add(activeSerial);
         trayCompletedOkSerials.remove(activeSerial);
+        removeOrderOkSerial(activeSerial);
         int cumulativeTypeCount = 1;
         if (ngType >= 1 && ngType <= trayNgTypeCounts.length) {
             trayNgTypeCounts[ngType - 1]++;
@@ -449,6 +471,11 @@ public abstract class UnitLogic {
         trayRejectedSerials.clear();
         if (okSerials != null) {
             trayCompletedOkSerials.addAll(okSerials);
+            if (publishFinalSerialsInSummary) {
+                okSerials.stream()
+                        .filter(s -> s != null && !s.isBlank())
+                        .forEach(this::recordOrderOkSerial);
+            }
         }
         if (ngSerials != null) {
             trayRejectedSerials.addAll(ngSerials);
@@ -572,8 +599,12 @@ public abstract class UnitLogic {
     }
 
     private void updateOrderSummaryPayload(MultiMachineNameSpace ns) {
+        if (!StringUtils.hasText(orderNo)) {
+            updateTelemetry(ns, "order_summary_payload", "");
+            return;
+        }
         String compressedSerials = publishFinalSerialsInSummary
-                ? serializeSerialsAsGzipBase64(trayCompletedOkSerials)
+                ? serializeSerialsAsGzipBase64(new ArrayList<>(orderCompletedOkSerials))
                 : "";
         String payload = String.format(
                 "{\"equipmentCode\":\"%s\",\"order_no\":\"%s\",\"status\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d,\"good_serials_gzip\":\"%s\"}",
@@ -1007,6 +1038,14 @@ public abstract class UnitLogic {
         if (newTargetQuantity <= 0) {
             throw new IllegalArgumentException("targetQuantity must be > 0");
         }
+        boolean continuationOfSameOrder = StringUtils.hasText(lastOrderNoForSerials)
+                && lastOrderNoForSerials.equals(newOrderNo);
+        if (!continuationOfSameOrder) {
+            orderCompletedOkSerials.clear();
+            lastOrderNoForSerials = newOrderNo;
+        } else {
+            lastOrderNoForSerials = newOrderNo;
+        }
         int effectivePpm = newPpm > 0 ? newPpm : defaultPpm;
         this.orderActive = true;
         this.orderNo = newOrderNo;
@@ -1018,6 +1057,7 @@ public abstract class UnitLogic {
         this.lastProducedIncrement = 0;
         this.okCount = 0;
         this.ngCount = 0;
+        orderCompletedOkSerials.clear();
         Arrays.fill(trayNgTypeCounts, 0);
         resetOrderNgCounts(ns);
         updateTelemetry(ns, "order_no", orderNo);
@@ -1027,6 +1067,7 @@ public abstract class UnitLogic {
         updateTelemetry(ns, "PPM", ppm);
         updateOrderStatus(ns, "PREPARING");
         updateMesAckPending(ns, false);
+        updateOrderSummaryPayload(ns);
 
         if (!"STARTING".equals(state) && !"EXECUTE".equals(state)) {
             changeState(ns, "STARTING");
@@ -1098,6 +1139,7 @@ public abstract class UnitLogic {
         updateProducedQuantity(ns, producedQuantity);
         updateQualityCounts(ns, 0, 0);
         resetNgTelemetry(ns);
+        updateOrderSummaryPayload(ns);
         updateOrderStatus(ns, "IDLE");
         updateMesAckPending(ns, false);
         if (lineController != null) {
