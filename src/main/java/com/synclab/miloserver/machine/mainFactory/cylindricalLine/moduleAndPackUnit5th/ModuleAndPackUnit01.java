@@ -57,7 +57,7 @@ public class ModuleAndPackUnit01 extends UnitLogic {
         this.unitType = "MODULE_PACK";
         this.lineId = lineId;
         this.machineNo = 5;
-        this.equipmentCode = equipmentCode;
+        this.equipmentCode = equipmentPrefix;
         this.processId = "ModulePack";
         this.defaultPpm = 60;
         setUnitsPerCycle(1);
