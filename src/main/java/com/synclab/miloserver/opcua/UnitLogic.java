@@ -529,10 +529,10 @@ public abstract class UnitLogic {
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
                 "{\"equipment_code\":\"%s\",\"order_no\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
-                equipmentCode == null ? "" : equipmentCode,
-                orderNo == null ? "" : orderNo,
+                escapeJson(equipmentCode),
+                escapeJson(orderNo),
                 ngType,
-                lastNgName == null ? "" : lastNgName,
+                escapeJson(lastNgName),
                 Math.max(ngQty, 0)
         );
         updateTelemetry(ns, "ng_event_payload", payload);
@@ -597,13 +597,13 @@ public abstract class UnitLogic {
         String userValue = clearedUserId == null ? "null" : String.valueOf(clearedUserId);
         String payload = String.format(
                 "{\"equipment_code\":\"%s\",\"alarm_code\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
-                equipmentCode == null ? "" : equipmentCode,
-                definition.code == null ? "" : definition.code,
+                escapeJson(equipmentCode),
+                escapeJson(definition.code),
                 definition.severity.getLevel(),
-                definition.name == null ? "" : definition.name,
-                definition.severity.getDisplay(),
-                occurredAt.toString(),
-                clearedAt == null ? "" : clearedAt.toString(),
+                escapeJson(definition.name),
+                escapeJson(definition.severity.getDisplay()),
+                escapeJson(occurredAt.toString()),
+                escapeJson(clearedAt == null ? "" : clearedAt.toString()),
                 userValue
         );
         updateTelemetry(ns, "alarm_event_payload", payload);
