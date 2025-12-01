@@ -563,11 +563,11 @@ public abstract class UnitLogic {
 
     private void publishNgEvent(MultiMachineNameSpace ns, int ngType, int ngQty) {
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"order_no\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
-                equipmentCode == null ? "" : equipmentCode,
-                orderNo == null ? "" : orderNo,
+                "{\"equipment_code\":\"%s\",\"order_no\":\"%s\",\"ng_type\":%d,\"ng_name\":\"%s\",\"ng_qty\":%d}",
+                escapeJson(equipmentCode),
+                escapeJson(orderNo),
                 ngType,
-                lastNgName == null ? "" : lastNgName,
+                escapeJson(lastNgName),
                 Math.max(ngQty, 0)
         );
         updateTelemetry(ns, "ng_event_payload", payload);
@@ -575,7 +575,7 @@ public abstract class UnitLogic {
 
     private void publishNgTypePayload(MultiMachineNameSpace ns) {
         StringBuilder builder = new StringBuilder();
-        builder.append("{\"equipmentCode\":\"")
+        builder.append("{\"equipment_code\":\"")
                 .append(escapeJson(equipmentCode))
                 .append("\",\"order_no\":\"")
                 .append(escapeJson(orderNo))
@@ -613,7 +613,7 @@ public abstract class UnitLogic {
                 ? serializeSerialsAsGzipBase64(new ArrayList<>(orderCompletedOkSerials))
                 : "";
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"order_no\":\"%s\",\"status\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d,\"good_serials_gzip\":\"%s\"}",
+                "{\"equipment_code\":\"%s\",\"order_no\":\"%s\",\"status\":\"%s\",\"order_produced_qty\":%d,\"order_ng_qty\":%d,\"good_serials_gzip\":\"%s\"}",
                 escapeJson(equipmentCode),
                 escapeJson(orderNo),
                 escapeJson(orderStatus),
@@ -641,14 +641,14 @@ public abstract class UnitLogic {
         }
         String userValue = clearedUserId == null ? "null" : String.valueOf(clearedUserId);
         String payload = String.format(
-                "{\"equipmentCode\":\"%s\",\"alarm_code\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
-                equipmentCode == null ? "" : equipmentCode,
-                definition.code == null ? "" : definition.code,
+                "{\"equipment_code\":\"%s\",\"alarm_code\":\"%s\",\"alarm_type\":%d,\"alarm_name\":\"%s\",\"alarm_level\":\"%s\",\"occurred_at\":\"%s\",\"cleared_at\":\"%s\",\"user\":%s}",
+                escapeJson(equipmentCode),
+                escapeJson(definition.code),
                 definition.severity.getLevel(),
-                definition.name == null ? "" : definition.name,
-                definition.severity.getDisplay(),
-                occurredAt.toString(),
-                clearedAt == null ? "" : clearedAt.toString(),
+                escapeJson(definition.name),
+                escapeJson(definition.severity.getDisplay()),
+                escapeJson(occurredAt.toString()),
+                escapeJson(clearedAt == null ? "" : clearedAt.toString()),
                 userValue
         );
         updateTelemetry(ns, "alarm_event_payload", payload);
