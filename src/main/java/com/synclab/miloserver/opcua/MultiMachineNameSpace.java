@@ -61,6 +61,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
     private final AtomicInteger nodeCounter = new AtomicInteger(1);
     private final UaFolderNode rootFolder;
     private final List<UnitLogic> machines = new ArrayList<>();
+    private final List<EnvironmentProbe> environmentProbes = new ArrayList<>();
     private final List<ProductionLineController> lineControllers = new ArrayList<>();
     private final Map<String, ProductionLineController> lineControllersByKey = new ConcurrentHashMap<>();
     private final Map<String, UaVariableNode> commandNodes = new ConcurrentHashMap<>();
@@ -73,10 +74,17 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
     private static final class FactoryProfile {
         private final String factoryCode;
+        private final double baseTemperature;
+        private final double baseHumidity;
         private final List<LineProfile> lines;
 
-        private FactoryProfile(String factoryCode, List<LineProfile> lines) {
+        private FactoryProfile(String factoryCode,
+                               double baseTemperature,
+                               double baseHumidity,
+                               List<LineProfile> lines) {
             this.factoryCode = factoryCode;
+            this.baseTemperature = baseTemperature;
+            this.baseHumidity = baseHumidity;
             this.lines = lines;
         }
     }
@@ -190,17 +198,17 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
         // CtrlLine 문서의 공장/라인 프로필(F0001~F0003, CL/PL/CP)을 그대로 코드로 정의한다.
         List<FactoryProfile> factories = Arrays.asList(
-                new FactoryProfile("F0001", Arrays.asList(
+                new FactoryProfile("F0001", 23.5, 45.0, Arrays.asList(
                         new LineProfile("CL0001", "CylindricalLine", "F1-CL1-", true, LineVariant.CYLINDRICAL, 1),
                         new LineProfile("PL0001", "PrismaticLine", "F1-PL1-", false, LineVariant.PRISMATIC, 2),
                         new LineProfile("CP0001", "CompositeLine", "F1-CP1-", false, LineVariant.COMPOSITE, 3)
                 )),
-                new FactoryProfile("F0002", Arrays.asList(
+                new FactoryProfile("F0002", 22.8, 42.5, Arrays.asList(
                         new LineProfile("CL0002", "CylindricalLine", "F2-CL2-", false, LineVariant.CYLINDRICAL, 4),
                         new LineProfile("PL0002", "PrismaticLine", "F2-PL2-", false, LineVariant.PRISMATIC, 5),
                         new LineProfile("CP0002", "CompositeLine", "F2-CP2-", false, LineVariant.COMPOSITE, 6)
                 )),
-                new FactoryProfile("F0003", Arrays.asList(
+                new FactoryProfile("F0003", 24.0, 48.0, Arrays.asList(
                         new LineProfile("CL0003", "CylindricalLine", "F3-CL3-", false, LineVariant.CYLINDRICAL, 7),
                         new LineProfile("PL0003", "PrismaticLine", "F3-PL3-", false, LineVariant.PRISMATIC, 8),
                         new LineProfile("CP0003", "CompositeLine", "F3-CP3-", false, LineVariant.COMPOSITE, 9)
@@ -211,6 +219,8 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
             initializeFactory(factory);
         }
 
+        environmentProbes.forEach(EnvironmentProbe::start);
+
         System.out.println("[MultiMachineNameSpace] Machines initialized successfully.");
         System.out.println("[MultiMachineNameSpace] ObjectsFolder initialized successfully.");
         System.out.println("[DEBUG] namespace index: " + getNamespaceIndex());
@@ -219,9 +229,21 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
     private void initializeFactory(FactoryProfile factoryProfile) {
         UaFolderNode factoryFolder = addFolder(rootFolder, factoryProfile.factoryCode);
+        registerEnvironmentProbe(factoryProfile, factoryFolder);
         for (LineProfile profile : factoryProfile.lines) {
             initializeLine(factoryFolder, factoryProfile.factoryCode, profile);
         }
+    }
+
+    private void registerEnvironmentProbe(FactoryProfile factoryProfile, UaFolderNode factoryFolder) {
+        EnvironmentProbe probe = new EnvironmentProbe(
+                this,
+                factoryFolder,
+                factoryProfile.factoryCode,
+                factoryProfile.baseTemperature,
+                factoryProfile.baseHumidity
+        );
+        environmentProbes.add(probe);
     }
 
     private void initializeLine(UaFolderNode factoryFolder, String factoryCode, LineProfile profile) {
