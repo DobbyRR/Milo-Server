@@ -49,6 +49,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * 공장/라인/설비 계층 구조와 각 UnitLogic의 telemetry 노드를 한 번에 구성하는 핵심 네임스페이스.
+ * CtrlLine에서 설명한 "Machines 루트 → factory.line.machine.tag" 규칙이 여기서 생성된다.
+ */
 public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
 
     private static MultiMachineNameSpace instance;
@@ -184,6 +188,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
         // 예시 변수 노드(정방향으로 부모=Machines에 달아줌)
 //        addVariableNode(rootFolder, "Factory.Status", "RUNNING");
 
+        // CtrlLine 문서의 공장/라인 프로필(F0001~F0003, CL/PL/CP)을 그대로 코드로 정의한다.
         List<FactoryProfile> factories = Arrays.asList(
                 new FactoryProfile("F0001", Arrays.asList(
                         new LineProfile("CL0001", "CylindricalLine", "F1-CL1-", true, LineVariant.CYLINDRICAL, 1),
@@ -619,6 +624,7 @@ public class MultiMachineNameSpace extends ManagedNamespaceWithLifecycle {
                 .setValue(new DataValue(new Variant(""), StatusCode.GOOD, DateTime.now(), DateTime.now()))
                 .build();
 
+        // Gateway → CtrlLine → Milo Server 명령 흐름이 이 delegate를 통해 OPC Write → onCommand()로 전달된다.
         commandNode.setAttributeDelegate(new AttributeDelegate() {
             @Override
             public void setAttribute(AttributeContext context, org.eclipse.milo.opcua.sdk.core.nodes.Node node, AttributeId attributeId, DataValue value) throws UaException {

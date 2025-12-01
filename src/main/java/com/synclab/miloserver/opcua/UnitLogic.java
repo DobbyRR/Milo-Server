@@ -29,6 +29,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * 각 설비 시뮬레이터가 공통으로 사용하는 추상 클래스.
+ * PackML/OEE 태그, NG/알람, 에너지, command 처리 등 CtrlLine 문서에서 설명한 telemetry 흐름이 모두 여기서 구현된다.
+ */
 public abstract class UnitLogic {
     protected final String name;
     protected final UaFolderNode machineFolder;
@@ -163,6 +167,7 @@ public abstract class UnitLogic {
     protected ActiveAlarm activeAlarm;
 
     protected final Map<String, UaVariableNode> telemetryNodes = new HashMap<>();
+    // 문서에서 언급한 "1초 주기 시뮬레이션"을 담당하는 스케줄러
     private final ScheduledExecutorService simulationExecutor =
             Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r);
@@ -185,6 +190,7 @@ public abstract class UnitLogic {
     public abstract void simulateStep(MultiMachineNameSpace ns);
 
     /** 공통 telemetry 등록 (PackML/OEE 기반) */
+    // CtrlLine이 주요 태그(state, mode_state, energy_usage 등)를 인식할 수 있도록 공통 변수를 등록
     protected void setupCommonTelemetry(MultiMachineNameSpace ns) {
         telemetryNodes.put("equipment_code", ns.addVariableNode(machineFolder, name + ".equipment_code", equipmentCode));
         telemetryNodes.put("process_id", ns.addVariableNode(machineFolder, name + ".process_id", processId));

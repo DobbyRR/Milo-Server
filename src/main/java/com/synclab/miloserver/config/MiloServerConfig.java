@@ -17,6 +17,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * Milo-Server 전체 파이프라인의 시작점으로, OPC UA 엔드포인트와 네임스페이스를 고정해
+ * Gateway/CtrlLine이 동일한 주소공간 구조를 항상 참조할 수 있게 한다.
+ */
 @Configuration
 public class MiloServerConfig {
 
@@ -25,7 +29,7 @@ public class MiloServerConfig {
 
         EndpointConfiguration endpoint = new EndpointConfiguration.Builder()
                 .setBindAddress("0.0.0.0")
-                .setHostname("192.168.0.34")
+                .setHostname("192.168.0.35")
                 .setPath("/milo")
                 .setSecurityPolicy(SecurityPolicy.None)
                 .setBindPort(4840)
@@ -68,7 +72,6 @@ public class MiloServerConfig {
         return new UaNodeManager();
     }
 }
-
 
 
 
